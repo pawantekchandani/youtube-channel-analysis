@@ -1,10 +1,8 @@
 import { ChannelInfo, FormatKPIs, KPIData, VideoItem, SponsorStat } from '@/types';
 import {
-  detectSponsorInText,
-  evaluateSponsorship,
+  evaluateTranscriptSponsorship,
   fetchVideoTranscript,
   mapConcurrent,
-  TextMatchResult,
 } from './sponsor';
 
 /**
@@ -514,16 +512,10 @@ export async function fetchPast90DaysVideos(
     chunks.push(videoIds.slice(i, i + 50));
   }
 
-  interface RawVideoEntry {
-    video: VideoItem;
-    hasPaidPlacement: boolean;
-    descResult: TextMatchResult;
-  }
-
-  const rawEntries: RawVideoEntry[] = [];
+  const rawVideos: VideoItem[] = [];
 
   for (const chunk of chunks) {
-    const videosUrl = `${baseUrl}/videos?part=snippet,contentDetails,statistics,status,liveStreamingDetails,paidProductPlacementDetails&id=${encodeURIComponent(
+    const videosUrl = `${baseUrl}/videos?part=snippet,contentDetails,statistics,status,liveStreamingDetails&id=${encodeURIComponent(
       chunk.join(',')
     )}&key=${apiKey}`;
     const res = await fetch(videosUrl);
@@ -581,17 +573,10 @@ export async function fetchPast90DaysVideos(
           (item.snippet?.liveBroadcastContent && item.snippet.liveBroadcastContent !== 'none')
       );
 
-      // 1. YouTube Data API paid product placement flag
-      const hasPaidPlacement = Boolean(item.paidProductPlacementDetails?.hasPaidProductPlacement);
-
-      // 2. Description keyword matching & brand extraction
-      const description = item.snippet?.description || '';
-      const descResult = detectSponsorInText(description);
-
-      const videoItem: VideoItem = {
+      rawVideos.push({
         id: item.id,
         title: item.snippet?.title || 'Untitled',
-        description,
+        description: item.snippet?.description || '',
         publishedAt,
         thumbnail:
           item.snippet?.thumbnails?.maxres?.url ||
@@ -618,46 +603,30 @@ export async function fetchPast90DaysVideos(
         sponsored: 'no',
         sponsorName: null,
         sponsorSource: null,
-      };
-
-      rawEntries.push({
-        video: videoItem,
-        hasPaidPlacement,
-        descResult,
       });
     }
   }
 
-  // 3. Transcript keyword match: only when step 2 found no sponsor name
-  // Fetch transcripts server-side only with small concurrency limit (3 at a time)
-  const entriesNeedingTranscript = rawEntries.filter((e) => !e.descResult.sponsorName);
-
-  const transcriptResults = await mapConcurrent(entriesNeedingTranscript, 3, async (entry) => {
-    const transcriptText = await fetchVideoTranscript(entry.video.id);
-    return { id: entry.video.id, transcriptText };
+  // Fetch transcript for EVERY video in the 90-day window (concurrency 3)
+  const transcriptResults = await mapConcurrent(rawVideos, 3, async (video) => {
+    const transcriptText = await fetchVideoTranscript(video.id);
+    return { id: video.id, transcriptText };
   });
 
   const transcriptMap = new Map(transcriptResults.map((r) => [r.id, r.transcriptText]));
 
-  for (const entry of rawEntries) {
-    const transcriptText = transcriptMap.has(entry.video.id)
-      ? transcriptMap.get(entry.video.id)!
+  for (const video of rawVideos) {
+    const transcriptText = transcriptMap.has(video.id)
+      ? transcriptMap.get(video.id)!
       : null;
-    const transcriptFetched = transcriptMap.has(entry.video.id) && transcriptText !== null;
 
-    const evalResult = evaluateSponsorship({
-      hasPaidPlacement: entry.hasPaidPlacement,
-      descResult: entry.descResult,
-      transcriptText,
-      transcriptFetched,
-    });
+    const evalResult = evaluateTranscriptSponsorship(transcriptText);
 
-    entry.video.sponsored = evalResult.sponsored;
-    entry.video.sponsorName = evalResult.sponsorName;
-    entry.video.sponsorSource = evalResult.sponsorSource;
+    video.sponsored = evalResult.sponsored;
+    video.sponsorName = evalResult.sponsorName;
+    video.sponsorSource = evalResult.sponsorSource;
+    video.sponsorSnippet = evalResult.matchedSnippet;
   }
-
-  const rawVideos: VideoItem[] = rawEntries.map((e) => e.video);
 
   // Calculate avg views and enrich outlier flags
   const totalViews = rawVideos.reduce((acc, v) => acc + (typeof v.views === 'number' ? v.views : 0), 0);

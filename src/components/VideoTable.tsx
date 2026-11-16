@@ -617,7 +617,7 @@ export const VideoTable: React.FC<VideoTableProps> = ({
                       ) : (
                         <span
                           className="inline-flex items-center px-2 py-0.5 rounded-full bg-zinc-800/60 text-zinc-500 italic text-xs border border-zinc-800"
-                          title="Transcript unavailable to verify sponsorship"
+                          title="Transcript unavailable to determine sponsorship"
                         >
                           Unknown
                         </span>
@@ -634,15 +634,15 @@ export const VideoTable: React.FC<VideoTableProps> = ({
                           >
                             {video.sponsorName}
                           </div>
-                          <div className="text-[10px] text-zinc-500 capitalize">
-                            via {video.sponsorSource}
+                          <div className="text-[10px] text-zinc-500">
+                            from transcript
                           </div>
                         </div>
                       ) : video.sponsored === 'yes' ? (
                         <div>
                           <div className="text-zinc-400 italic text-xs">Unnamed</div>
-                          <div className="text-[10px] text-zinc-500 capitalize">
-                            via {video.sponsorSource || 'flag'}
+                          <div className="text-[10px] text-zinc-500">
+                            from transcript
                           </div>
                         </div>
                       ) : (
