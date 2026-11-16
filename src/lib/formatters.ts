@@ -1,50 +1,26 @@
 /**
  * Formats large numbers into clean human-readable strings (e.g. 1.2M, 450K)
+ * If value is 'hidden' or invalid, returns 'Hidden' or '0'
  */
-export function formatCompactNumber(num: number): string {
-  if (isNaN(num)) return '0';
-  if (num >= 1_000_000_000) {
-    return (num / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B';
+export function formatCompactNumber(num: number | 'hidden' | undefined | null): string {
+  if (num === 'hidden') return 'Hidden';
+  if (num === undefined || num === null || isNaN(Number(num))) return '0';
+  const val = Number(num);
+  if (val >= 1_000_000_000) {
+    return (val / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B';
   }
-  if (num >= 1_000_000) {
-    return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (val >= 1_000_000) {
+    return (val / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
   }
-  if (num >= 1_000) {
-    return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+  if (val >= 1_000) {
+    return (val / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
   }
-  return num.toLocaleString();
+  return val.toLocaleString();
 }
 
 /**
- * Formats currency in USD ($) or Indian Rupees (₹) with Lakhs & Crores
+ * Formats relative time (e.g. 3d ago, 2w ago)
  */
-export function formatCurrency(amount: number, currency: 'USD' | 'INR' = 'USD'): string {
-  if (isNaN(amount) || amount === 0) {
-    return currency === 'USD' ? '$0' : '₹0';
-  }
-
-  if (currency === 'INR') {
-    if (amount >= 10_000_000) {
-      return `₹${(amount / 10_000_000).toFixed(2).replace(/\.00$/, '')} Cr`;
-    }
-    if (amount >= 100_000) {
-      return `₹${(amount / 100_000).toFixed(1).replace(/\.0$/, '')} L`;
-    }
-    if (amount >= 1_000) {
-      return `₹${(amount / 1_000).toFixed(1).replace(/\.0$/, '')} K`;
-    }
-    return `₹${Math.round(amount).toLocaleString('en-IN')}`;
-  }
-
-  // USD
-  if (amount >= 1_000_000) {
-    return `$${(amount / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  }
-  if (amount >= 1_000) {
-    return `$${(amount / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  }
-  return `$${Math.round(amount).toLocaleString('en-US')}`;
-}
 export function formatRelativeDate(dateStr: string): string {
   try {
     const date = new Date(dateStr);

@@ -1,22 +1,18 @@
 'use client';
 
 import React from 'react';
-import { Settings, Sparkles, Key, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Settings, CheckCircle2, AlertCircle } from 'lucide-react';
 import { YoutubeIcon } from './icons/YoutubeIcon';
 import { ApiSettings } from '@/types';
 
 interface HeaderProps {
   onOpenSettings: () => void;
   apiSettings: ApiSettings;
-  onSelectPreset: (preset: 'fireship' | 'mrbeast' | 'aliabdaal') => void;
-  isDemoActive: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   apiSettings,
-  onSelectPreset,
-  isDemoActive,
 }) => {
   const hasYtKey = Boolean(apiSettings.youtubeApiKey?.trim());
   const hasGeminiKey = Boolean(apiSettings.geminiApiKey?.trim());
@@ -33,36 +29,11 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-lg tracking-tight text-white">TubePulse</span>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
-                Studio
+                Metrics
               </span>
             </div>
-            <p className="text-xs text-zinc-400 hidden sm:block">Competitor & Channel Intelligence (90d)</p>
+            <p className="text-xs text-zinc-400 hidden sm:block">YouTube Channel Public Metrics (90d Horizon)</p>
           </div>
-        </div>
-
-        {/* Quick Demo Shortcuts */}
-        <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-900/90 border border-zinc-800 text-xs text-zinc-400">
-          <span className="text-[11px] font-medium text-zinc-400 px-1.5 flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-amber-400" /> Demo:
-          </span>
-          <button
-            onClick={() => onSelectPreset('fireship')}
-            className="px-2.5 py-1 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800 transition text-xs font-medium"
-          >
-            @fireship
-          </button>
-          <button
-            onClick={() => onSelectPreset('mrbeast')}
-            className="px-2.5 py-1 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800 transition text-xs font-medium"
-          >
-            @MrBeast
-          </button>
-          <button
-            onClick={() => onSelectPreset('aliabdaal')}
-            className="px-2.5 py-1 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800 transition text-xs font-medium"
-          >
-            @aliabdaal
-          </button>
         </div>
 
         {/* Actions & Settings */}
@@ -84,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <>
                 <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-                <span>Demo / No Key</span>
+                <span>API Key Required</span>
               </>
             )}
           </button>

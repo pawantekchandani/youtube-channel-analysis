@@ -3,10 +3,8 @@ import {
   fetchChannelFromYouTube,
   fetchPast90DaysVideos,
   calculateKPIs,
-  fetchChannelZeroKey,
 } from '@/lib/youtube';
 import { analyzeChannelWithGemini } from '@/lib/gemini';
-import { getMockChannelData } from '@/lib/mockData';
 
 export const maxDuration = 60; // Allow sufficient time for YouTube API + Gemini AI
 
@@ -17,71 +15,38 @@ export async function POST(req: NextRequest) {
       channelQuery,
       youtubeApiKey: clientYtKey,
       geminiApiKey: clientGeminiKey,
-      isDemo,
-      demoPreset,
     } = body;
 
+    if (!channelQuery || !channelQuery.trim()) {
+      return NextResponse.json(
+        { error: 'Please enter a YouTube channel URL, @handle, or Channel ID.' },
+        { status: 400 }
+      );
+    }
+
     // Check environment variables as fallback
-    const ytKey = clientYtKey?.trim() || process.env.YOUTUBE_API_KEY || '';
-    const geminiKey = clientGeminiKey?.trim() || process.env.GEMINI_API_KEY || '';
+    const ytKey = clientYtKey?.trim() || process.env.YOUTUBE_API_KEY?.trim() || '';
+    const geminiKey = clientGeminiKey?.trim() || process.env.GEMINI_API_KEY?.trim() || '';
 
-    // If Demo Mode requested or explicit preset
-    if (isDemo || !channelQuery) {
-      const preset = demoPreset || 'fireship';
-      const mockData = getMockChannelData(preset);
-      return NextResponse.json(mockData);
-    }
-
-    const queryLower = channelQuery.toLowerCase().trim();
-    if (
-      !ytKey &&
-      (queryLower.includes('fireship') ||
-        queryLower.includes('mrbeast') ||
-        queryLower.includes('aliabdaal') ||
-        queryLower.includes('ali abdaal'))
-    ) {
-      let preset: 'fireship' | 'mrbeast' | 'aliabdaal' = 'fireship';
-      if (queryLower.includes('mrbeast')) preset = 'mrbeast';
-      if (queryLower.includes('aliabdaal') || queryLower.includes('ali abdaal')) preset = 'aliabdaal';
-      return NextResponse.json(getMockChannelData(preset));
-    }
-
-    // If no YouTube Data API v3 key provided, use the Public Zero-Key Live Resolver!
+    // If no YouTube Data API v3 key provided, return error requesting key
     if (!ytKey) {
-      try {
-        const { channelInfo, videos } = await fetchChannelZeroKey(channelQuery);
-        const kpis = calculateKPIs(videos, channelInfo);
-        const geminiInsights = await analyzeChannelWithGemini(channelInfo, videos, geminiKey);
-
-        return NextResponse.json({
-          channel: channelInfo,
-          kpis,
-          videos,
-          geminiInsights,
-          fetchedAt: new Date().toISOString(),
-          daysRange: 90,
-          source: 'rss',
-        });
-      } catch (zeroKeyError: any) {
-        return NextResponse.json(
-          {
-            error:
-              zeroKeyError.message ||
-              'YouTube Data API v3 key is required for live channel analysis. Please add your key in the Settings modal (gear icon), or switch to "Demo Mode" to preview with mock data.',
-          },
-          { status: 400 }
-        );
-      }
+      return NextResponse.json(
+        {
+          error:
+            'YouTube Data API v3 key is required. Please set YOUTUBE_API_KEY in .env.local or enter your API key in Settings (gear icon).',
+        },
+        { status: 400 }
+      );
     }
 
     // 1. Fetch Channel Info
-    const { channelInfo, uploadsPlaylistId } = await fetchChannelFromYouTube(channelQuery, ytKey);
+    const { channelInfo, uploadsPlaylistId } = await fetchChannelFromYouTube(channelQuery.trim(), ytKey);
 
-    // 2. Fetch past 90 days videos
-    const videos = await fetchPast90DaysVideos(uploadsPlaylistId, ytKey);
+    // 2. Fetch past 90 days videos (filtered strictly to past 90 days)
+    const { videos, warning } = await fetchPast90DaysVideos(uploadsPlaylistId, ytKey);
 
-    // 3. Compute KPI Metrics
-    const kpis = calculateKPIs(videos, channelInfo);
+    // 3. Compute KPI Metrics strictly from accurate API data
+    const kpis = calculateKPIs(videos);
 
     // 4. Gemini Strategic Analysis
     const geminiInsights = await analyzeChannelWithGemini(channelInfo, videos, geminiKey);
@@ -94,6 +59,7 @@ export async function POST(req: NextRequest) {
       fetchedAt: new Date().toISOString(),
       daysRange: 90,
       source: 'api',
+      warning,
     });
   } catch (error: any) {
     console.error('API /api/analyze error:', error);
