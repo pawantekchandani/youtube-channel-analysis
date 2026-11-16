@@ -3,7 +3,8 @@
 import React from 'react';
 import { FormatKPIs, KPIData } from '@/types';
 import { formatCompactNumber } from '@/lib/formatters';
-import { Film, CalendarDays, Clock, Eye, PieChart, Smartphone } from 'lucide-react';
+import { formatDuration } from '@/lib/youtube';
+import { Film, CalendarDays, Clock, Eye, PieChart, Smartphone, Timer } from 'lucide-react';
 
 interface KPICardsProps {
   kpis: KPIData;
@@ -52,7 +53,7 @@ const FormatRow: React.FC<FormatRowProps> = ({ title, accentClass, icon, iconCla
       <span className={`w-2 h-2 rounded-full ${accentClass}`} />
       <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">{title}</span>
     </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
       <StatCard
         label="Videos"
         icon={icon}
@@ -84,6 +85,14 @@ const FormatRow: React.FC<FormatRowProps> = ({ title, accentClass, icon, iconCla
         value={formatCompactNumber(data.averageViews)}
         unit="/ video"
         footer={`Median: ${formatCompactNumber(data.medianViews)}`}
+      />
+      <StatCard
+        label="Avg Length"
+        icon={<Timer className="w-4 h-4" />}
+        iconClass="bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+        value={data.count > 0 ? formatDuration(data.averageDurationSeconds) : '—'}
+        unit=""
+        footer="Mean duration per video"
       />
     </div>
   </div>

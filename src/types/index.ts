@@ -45,6 +45,7 @@ export interface FormatKPIs {
   averageViews: number;
   medianViews: number;
   totalViews: number;
+  averageDurationSeconds: number;
 }
 
 export interface KPIData {

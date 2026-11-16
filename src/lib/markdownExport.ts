@@ -1,5 +1,6 @@
 import { ChannelAnalysisResponse } from '@/types';
 import { formatCompactNumber, formatCalendarDate } from './formatters';
+import { formatDuration } from './youtube';
 
 /**
  * Generates a structured Markdown report from the analyzed channel data.
@@ -50,6 +51,7 @@ export function generateMarkdownReport(data: ChannelAnalysisResponse): string {
   lines.push(`| **Average Views** | ${formatCompactNumber(kpis.long.averageViews)} | ${formatCompactNumber(kpis.shorts.averageViews)} |`);
   lines.push(`| **Median Views** | ${formatCompactNumber(kpis.long.medianViews)} | ${formatCompactNumber(kpis.shorts.medianViews)} |`);
   lines.push(`| **Total Views** | ${formatCompactNumber(kpis.long.totalViews)} | ${formatCompactNumber(kpis.shorts.totalViews)} |`);
+  lines.push(`| **Avg Length** | ${kpis.long.count > 0 ? formatDuration(kpis.long.averageDurationSeconds) : '—'} | ${kpis.shorts.count > 0 ? formatDuration(kpis.shorts.averageDurationSeconds) : '—'} |`);
   lines.push('');
   lines.push(`| Metric | Value | Insights / Benchmark |`);
   lines.push(`| :--- | :--- | :--- |`);

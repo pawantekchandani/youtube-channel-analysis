@@ -113,6 +113,7 @@ export function calculateFormatKPIs(videos: VideoItem[]): FormatKPIs {
       averageViews: 0,
       medianViews: 0,
       totalViews: 0,
+      averageDurationSeconds: 0,
     };
   }
 
@@ -133,7 +134,18 @@ export function calculateFormatKPIs(videos: VideoItem[]): FormatKPIs {
     averageUploadGapDays = parseFloat((totalGapDays / (times.length - 1)).toFixed(1));
   }
 
-  return { count, weeklyUploadFrequency, averageUploadGapDays, averageViews, medianViews, totalViews };
+  const totalDurationSeconds = videos.reduce((acc, v) => acc + (v.durationSeconds || 0), 0);
+  const averageDurationSeconds = Math.round(totalDurationSeconds / count);
+
+  return {
+    count,
+    weeklyUploadFrequency,
+    averageUploadGapDays,
+    averageViews,
+    medianViews,
+    totalViews,
+    averageDurationSeconds,
+  };
 }
 
 /**
