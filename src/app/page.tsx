@@ -209,7 +209,7 @@ export default function HomePage() {
             />
 
             {/* 2. KPI Cards */}
-            <KPICards kpis={data.kpis} />
+            <KPICards kpis={data.kpis} allTimeVideos={data.channel.totalVideosCount} />
 
             {/* 3. Gemini Strategic AI Niche Dossier */}
             <GeminiNicheCard insights={data.geminiInsights} />
