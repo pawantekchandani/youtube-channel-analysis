@@ -40,6 +40,7 @@ export function generateMarkdownReport(data: ChannelAnalysisResponse): string {
   lines.push(`## 2. 90-Day Upload Cadence & Performance KPIs`);
   lines.push(`| Metric | Value | Insights / Benchmark |`);
   lines.push(`| :--- | :--- | :--- |`);
+  lines.push(`| **All-Time Videos** | ${channel.totalVideosCount.toLocaleString()} videos | Public uploads since channel start |`);
   lines.push(`| **Analyzed Uploads (90d)** | ${kpis.totalVideos90d} videos | All formats combined |`);
   lines.push(`| **Total 90d Views** | ${formatCompactNumber(kpis.totalViews90d)} (${kpis.totalViews90d.toLocaleString()}) | Total views across 90-day uploads |`);
   lines.push('');

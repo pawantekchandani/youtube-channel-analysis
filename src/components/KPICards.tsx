@@ -4,10 +4,11 @@ import React from 'react';
 import { FormatKPIs, KPIData } from '@/types';
 import { formatCompactNumber } from '@/lib/formatters';
 import { formatDuration } from '@/lib/youtube';
-import { Film, CalendarDays, Clock, Eye, PieChart, Smartphone, Timer } from 'lucide-react';
+import { Film, CalendarDays, Clock, Eye, PieChart, Smartphone, Timer, Library } from 'lucide-react';
 
 interface KPICardsProps {
   kpis: KPIData;
+  allTimeVideos: number;
 }
 
 const cardClass =
@@ -98,7 +99,7 @@ const FormatRow: React.FC<FormatRowProps> = ({ title, accentClass, icon, iconCla
   </div>
 );
 
-export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
+export const KPICards: React.FC<KPICardsProps> = ({ kpis, allTimeVideos }) => {
   return (
     <div className="space-y-5">
       {/* Section Header */}
@@ -109,7 +110,15 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
       </div>
 
       {/* Overall: total uploads and format mix */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard
+          label="All-Time Videos"
+          icon={<Library className="w-4 h-4" />}
+          iconClass="bg-sky-500/10 text-sky-400 border-sky-500/20"
+          value={allTimeVideos.toLocaleString()}
+          unit="videos"
+          footer="Public uploads since channel start"
+        />
         <StatCard
           label="Total Videos"
           icon={<Film className="w-4 h-4" />}
