@@ -25,9 +25,9 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
         </span>
       </div>
 
-      {/* 5-Card Grid */}
+      {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {/* 1. Total Videos (90d) */}
+        {/* Total Videos (90d) */}
         <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
@@ -51,7 +51,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
           </div>
         </div>
 
-        {/* 2. Weekly Upload Frequency */}
+        {/* Weekly Upload Frequency */}
         <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
@@ -80,7 +80,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
           </div>
         </div>
 
-        {/* 3. Average Upload Gap */}
+        {/* Average Upload Gap */}
         <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
@@ -103,7 +103,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
           </div>
         </div>
 
-        {/* 4. Average Views */}
+        {/* Average Views */}
         <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
@@ -127,7 +127,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
           </div>
         </div>
 
-        {/* 5. Shorts vs. Long-form Ratio */}
+        {/* Shorts vs. Long-form Ratio */}
         <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">

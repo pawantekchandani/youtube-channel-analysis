@@ -2,43 +2,52 @@ import { ChannelAnalysisResponse } from '@/types';
 import { formatCompactNumber, formatCalendarDate } from './formatters';
 
 /**
- * Generates a comprehensive, structured Markdown report from the analyzed channel data.
+ * Generates a structured Markdown report from the analyzed channel data.
  */
 export function generateMarkdownReport(data: ChannelAnalysisResponse): string {
-  const { channel, kpis, videos, geminiInsights, fetchedAt, source } = data;
+  const { channel, kpis, videos, geminiInsights, fetchedAt } = data;
   const outliers = videos.filter((v) => v.isOutlier);
 
   const lines: string[] = [];
 
   // Header
-  lines.push(`# YouTube Channel & Competitor Intelligence Report`);
+  lines.push(`# YouTube Channel Public Metrics Report`);
   lines.push(`**Channel:** ${channel.title} (${channel.handle})`);
+  lines.push(`**Channel ID:** ${channel.id}`);
   lines.push(`**Generated At:** ${new Date(fetchedAt).toLocaleString()}`);
-  lines.push(`**Data Source:** ${source === 'api' ? 'YouTube Data API v3' : source === 'rss' ? 'Live Public YouTube Feed' : 'Demo Dataset'}`);
+  lines.push(`**Data Source:** YouTube Data API v3`);
   lines.push(`**Channel Link:** ${channel.customUrl ? `https://www.youtube.com/${channel.customUrl}` : `https://www.youtube.com/channel/${channel.id}`}`);
   lines.push('');
 
   // 1. Channel Overview
+  const subsFormatted =
+    channel.hiddenSubscriberCount || channel.subscriberCount === 'hidden'
+      ? 'Hidden'
+      : `${formatCompactNumber(channel.subscriberCount)} (${channel.subscriberCount.toLocaleString()})`;
+
   lines.push(`## 1. Channel Overview`);
-  lines.push(`- **Subscribers:** ${formatCompactNumber(channel.subscriberCount)} (${channel.subscriberCount.toLocaleString()})`);
+  lines.push(`- **Subscribers:** ${subsFormatted}`);
   lines.push(`- **Lifetime Views:** ${formatCompactNumber(channel.totalViews)} (${channel.totalViews.toLocaleString()})`);
   lines.push(`- **Total Uploads (Lifetime):** ${channel.totalVideosCount.toLocaleString()}`);
   if (channel.country) lines.push(`- **Country:** ${channel.country}`);
+  if (channel.publishedAt) lines.push(`- **Joined Date:** ${formatCalendarDate(channel.publishedAt)}`);
   lines.push(`- **Bio/Description:**`);
   lines.push(`  > ${channel.description ? channel.description.replace(/\n+/g, ' ') : 'No description provided.'}`);
   lines.push('');
 
   // 2. 90-Day Upload & Performance KPIs
-  lines.push(`## 2. 90-Day Performance & Upload Cadence KPIs`);
+  lines.push(`## 2. 90-Day Upload Cadence & Performance KPIs`);
   lines.push(`| Metric | Value | Insights / Benchmark |`);
   lines.push(`| :--- | :--- | :--- |`);
   lines.push(`| **Analyzed Uploads (90d)** | ${kpis.totalVideos90d} videos | Recent active catalog |`);
   lines.push(`| **Weekly Upload Frequency** | ${kpis.weeklyUploadFrequency} vids/week | ${kpis.weeklyUploadFrequency >= 3 ? 'High velocity output' : kpis.weeklyUploadFrequency >= 1 ? 'Consistent weekly rhythm' : 'Low upload frequency'} |`);
   lines.push(`| **Average Upload Gap** | ${kpis.averageUploadGapDays} days | Average gap between consecutive uploads |`);
   lines.push(`| **Average Views** | ${formatCompactNumber(kpis.averageViews)} | Median Views: ${formatCompactNumber(kpis.medianViews)} |`);
-  lines.push(`| **Shorts vs. Long-form** | ${kpis.longPercentage}% Long / ${kpis.shortsPercentage}% Shorts | ${kpis.longCount} Long-form, ${kpis.shortsCount} Shorts |`);
+  lines.push(`| **Total 90d Views** | ${formatCompactNumber(kpis.totalViews90d)} (${kpis.totalViews90d.toLocaleString()}) | Total views across 90-day uploads |`);
+  lines.push(`| **Shorts vs. Long-form** | ${kpis.longPercentage}% Long / ${kpis.shortsPercentage}% Shorts | ${kpis.longCount} Long-form, ${kpis.shortsCount} Shorts (≤180s) |`);
   lines.push(`| **Outlier Hit Rate (>2x Avg)** | ${kpis.outlierCount} videos (${kpis.outlierRate}%) | Videos generating more than 2x channel average |`);
   lines.push(`| **Highest Video Views** | ${formatCompactNumber(kpis.highestViews)} | Peak performer in window |`);
+  lines.push(`| **Lowest Video Views** | ${formatCompactNumber(kpis.lowestViews)} | Minimum performer in window |`);
   lines.push('');
 
   // 3. Gemini Strategic AI Niche & Content Dossier
@@ -48,7 +57,7 @@ export function generateMarkdownReport(data: ChannelAnalysisResponse): string {
     lines.push(`- **Sub-Niche:** ${geminiInsights.subNiche}`);
     lines.push('');
     if (geminiInsights.channelSummary) {
-      lines.push(`### Strategic Moat & Positioning`);
+      lines.push(`### Strategic Positioning`);
       lines.push(`${geminiInsights.channelSummary}`);
       lines.push('');
     }
@@ -115,19 +124,25 @@ export function generateMarkdownReport(data: ChannelAnalysisResponse): string {
     lines.push('');
   }
 
-  // 5. Full Video Catalog
+  // 5. Full Video Performance Catalog
   lines.push(`## 5. Complete Video Performance Catalog (${videos.length} Videos)`);
-  lines.push(`| # | Title | Published | Format | Duration | Views | Likes | Link |`);
-  lines.push(`| :-: | :--- | :--- | :--- | :--- | :--- | :--- | :--- |`);
+  lines.push(`| # | Video ID | Title | Published | Duration (s) | Format | Views | Likes | Comments | Category | Audio Lang | Made for Kids | Live/Premiere | Link |`);
+  lines.push(`| :-: | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |`);
   videos.forEach((v, idx) => {
     const cleanTitle = v.title.replace(/\|/g, '-');
     const format = v.isShort ? 'Short' : 'Long-form';
-    lines.push(`| ${idx + 1} | ${cleanTitle} | ${formatCalendarDate(v.publishedAt)} | ${format} | ${v.durationFormatted} | ${formatCompactNumber(v.views)} | ${formatCompactNumber(v.likes)} | [Link](${v.url}) |`);
+    const likesStr = v.likes === 'hidden' ? 'hidden' : v.likes.toLocaleString();
+    const commentsStr = v.comments === 'hidden' ? 'hidden' : v.comments.toLocaleString();
+    const kidsStr = v.madeForKids ? 'Yes' : 'No';
+    const liveStr = v.isLiveOrPremiere ? 'Yes' : 'No';
+    const langStr = v.defaultAudioLanguage || '—';
+
+    lines.push(`| ${idx + 1} | ${v.id} | ${cleanTitle} | ${formatCalendarDate(v.publishedAt)} | ${v.durationSeconds}s | ${format} | ${v.views.toLocaleString()} | ${likesStr} | ${commentsStr} | ${v.categoryId || '—'} | ${langStr} | ${kidsStr} | ${liveStr} | [Watch](${v.url}) |`);
   });
   lines.push('');
 
   lines.push(`---`);
-  lines.push(`*Report generated automatically by TubePulse - YouTube Competitor & Channel Analytics Studio*`);
+  lines.push(`*Report generated by TubePulse YouTube Public Metrics Studio*`);
 
   return lines.join('\n');
 }

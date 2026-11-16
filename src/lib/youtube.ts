@@ -1,12 +1,11 @@
 import { ChannelInfo, KPIData, VideoItem } from '@/types';
-import { calculateTotalRevenue, calculateVideoEarnings, getChannelRpmRange } from './earnings';
 
 /**
  * Parses an ISO 8601 duration string (e.g., "PT15M33S", "PT58S", "PT1H2M10S") into seconds.
  */
 export function parseISO8601Duration(duration: string): number {
   if (!duration) return 0;
-  
+
   const regex = /P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
   const matches = duration.match(regex);
   if (!matches) return 0;
@@ -24,7 +23,7 @@ export function parseISO8601Duration(duration: string): number {
  */
 export function formatDuration(seconds: number): string {
   if (isNaN(seconds) || seconds < 0) return '0:00';
-  
+
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
@@ -41,17 +40,11 @@ export function formatDuration(seconds: number): string {
 
 /**
  * Extracts a channel handle, ID, or search username from various user inputs
- * Supports:
- * - @handle or handle
- * - https://www.youtube.com/@handle
- * - https://www.youtube.com/channel/UCxxxxxxxxx
- * - https://www.youtube.com/c/customName
- * - UCxxxxxxxxxxxxxxxxxxxxxx (24 chars channel ID)
  */
 export function parseChannelInput(input: string): { type: 'handle' | 'id' | 'username' | 'search'; value: string } {
   const trimmed = input.trim();
 
-  // Channel ID direct (starts with UC and around 24 chars)
+  // Channel ID direct (starts with UC and 24 chars)
   if (/^UC[\w-]{22}$/.test(trimmed)) {
     return { type: 'id', value: trimmed };
   }
@@ -108,11 +101,10 @@ export function parseChannelInput(input: string): { type: 'handle' | 'id' | 'use
 }
 
 /**
- * Calculates all KPI metrics for the videos in past 90 days
+ * Calculates all KPI metrics strictly from accurate video API data in the past 90 days.
  */
-export function calculateKPIs(videos: VideoItem[], channel?: Partial<ChannelInfo>): KPIData {
+export function calculateKPIs(videos: VideoItem[]): KPIData {
   const totalVideos90d = videos.length;
-  const estimatedRevenue = calculateTotalRevenue(videos, channel);
 
   if (totalVideos90d === 0) {
     return {
@@ -132,14 +124,13 @@ export function calculateKPIs(videos: VideoItem[], channel?: Partial<ChannelInfo
       outlierRate: 0,
       highestViews: 0,
       lowestViews: 0,
-      estimatedRevenue,
     };
   }
 
   // Views & statistics sums
-  const totalViews90d = videos.reduce((acc, v) => acc + v.views, 0);
-  const totalLikes90d = videos.reduce((acc, v) => acc + v.likes, 0);
-  const totalComments90d = videos.reduce((acc, v) => acc + v.comments, 0);
+  const totalViews90d = videos.reduce((acc, v) => acc + (typeof v.views === 'number' ? v.views : 0), 0);
+  const totalLikes90d = videos.reduce((acc, v) => acc + (typeof v.likes === 'number' ? v.likes : 0), 0);
+  const totalComments90d = videos.reduce((acc, v) => acc + (typeof v.comments === 'number' ? v.comments : 0), 0);
   const averageViews = Math.round(totalViews90d / totalVideos90d);
 
   // Median views
@@ -153,18 +144,17 @@ export function calculateKPIs(videos: VideoItem[], channel?: Partial<ChannelInfo
   const highestViews = sortedViews[sortedViews.length - 1] || 0;
   const lowestViews = sortedViews[0] || 0;
 
-  // Shorts vs Long-form
+  // Shorts vs Long-form (Shorts: duration <= 180 seconds)
   const shortsCount = videos.filter((v) => v.isShort).length;
   const longCount = totalVideos90d - shortsCount;
   const shortsPercentage = Math.round((shortsCount / totalVideos90d) * 100);
   const longPercentage = 100 - shortsPercentage;
 
-  // Weekly upload frequency: (Total Videos in 90 days) / (90 / 7 weeks) = Total / 12.857
-  const weeksInRange = 90 / 7; // ~12.86 weeks
+  // Weekly upload frequency: (Total Videos in 90 days) / (90 / 7 weeks)
+  const weeksInRange = 90 / 7;
   const weeklyUploadFrequency = parseFloat((totalVideos90d / weeksInRange).toFixed(1));
 
-  // Average upload gap in days between consecutive videos
-  // Sort ascending by date
+  // Average upload gap in days between consecutive uploads
   const sortedByDateAsc = [...videos].sort(
     (a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime()
   );
@@ -206,38 +196,33 @@ export function calculateKPIs(videos: VideoItem[], channel?: Partial<ChannelInfo
     outlierRate,
     highestViews,
     lowestViews,
-    estimatedRevenue,
   };
 }
 
 /**
- * Marks outlier status (>2x avg) and assigns outlier multipliers & estimated video earnings
+ * Marks outlier status (>2x avg) and assigns outlier multipliers
  */
 export function enrichVideosWithOutliers(
   videos: VideoItem[],
-  avgViews: number,
-  channel?: Partial<ChannelInfo>
+  avgViews: number
 ): VideoItem[] {
   const threshold = avgViews * 2;
-  const rpmConfig = getChannelRpmRange(channel);
 
   return videos.map((video) => {
-    const isOutlier = avgViews > 0 && video.views >= threshold;
+    const isOutlier = avgViews > 0 && video.views > threshold;
     const outlierMultiplier =
       avgViews > 0 ? parseFloat((video.views / avgViews).toFixed(2)) : 1;
-    const estimatedRevenue = calculateVideoEarnings(video.views, video.isShort, rpmConfig);
 
     return {
       ...video,
       isOutlier,
       outlierMultiplier,
-      estimatedRevenue,
     };
   });
 }
 
 /**
- * Fetch Channel from YouTube API v3
+ * Fetch Channel from YouTube Data API v3
  */
 export async function fetchChannelFromYouTube(
   input: string,
@@ -249,7 +234,9 @@ export async function fetchChannelFromYouTube(
   let channelUrl = '';
 
   if (parsed.type === 'id') {
-    channelUrl = `${baseUrl}/channels?part=snippet,contentDetails,statistics&id=${parsed.value}&key=${apiKey}`;
+    channelUrl = `${baseUrl}/channels?part=snippet,contentDetails,statistics&id=${encodeURIComponent(
+      parsed.value
+    )}&key=${apiKey}`;
   } else if (parsed.type === 'handle') {
     const cleanHandle = parsed.value.startsWith('@') ? parsed.value : `@${parsed.value}`;
     channelUrl = `${baseUrl}/channels?part=snippet,contentDetails,statistics&forHandle=${encodeURIComponent(
@@ -260,7 +247,7 @@ export async function fetchChannelFromYouTube(
       parsed.value
     )}&key=${apiKey}`;
   } else {
-    // Search for channel by query
+    // Avoid search.list when possible; only fallback for free-text queries
     const searchUrl = `${baseUrl}/search?part=snippet&type=channel&maxResults=1&q=${encodeURIComponent(
       parsed.value
     )}&key=${apiKey}`;
@@ -274,7 +261,9 @@ export async function fetchChannelFromYouTube(
       throw new Error(`No YouTube channel found matching "${parsed.value}"`);
     }
     const channelId = searchData.items[0].snippet?.channelId || searchData.items[0].id?.channelId;
-    channelUrl = `${baseUrl}/channels?part=snippet,contentDetails,statistics&id=${channelId}&key=${apiKey}`;
+    channelUrl = `${baseUrl}/channels?part=snippet,contentDetails,statistics&id=${encodeURIComponent(
+      channelId
+    )}&key=${apiKey}`;
   }
 
   const res = await fetch(channelUrl);
@@ -296,7 +285,9 @@ export async function fetchChannelFromYouTube(
         if (searchData.items && searchData.items.length > 0) {
           const fallbackId = searchData.items[0].snippet?.channelId || searchData.items[0].id?.channelId;
           const fallbackRes = await fetch(
-            `${baseUrl}/channels?part=snippet,contentDetails,statistics&id=${fallbackId}&key=${apiKey}`
+            `${baseUrl}/channels?part=snippet,contentDetails,statistics&id=${encodeURIComponent(
+              fallbackId
+            )}&key=${apiKey}`
           );
           if (fallbackRes.ok) {
             const fbData = await fallbackRes.json();
@@ -323,10 +314,15 @@ function extractChannelData(item: any): { channelInfo: ChannelInfo; uploadsPlayl
     throw new Error('Could not find uploads playlist for this channel.');
   }
 
+  const hiddenSubscriberCount = Boolean(stats.hiddenSubscriberCount);
+  const subscriberCount = hiddenSubscriberCount
+    ? 'hidden'
+    : parseInt(stats.subscriberCount || '0', 10);
+
   const channelInfo: ChannelInfo = {
     id: item.id,
     title: snippet.title || 'Unknown Channel',
-    handle: snippet.customUrl || `@${item.id}`,
+    handle: snippet.customUrl || (item.id ? `@${item.id}` : ''),
     description: snippet.description || '',
     customUrl: snippet.customUrl,
     avatarUrl:
@@ -335,7 +331,8 @@ function extractChannelData(item: any): { channelInfo: ChannelInfo; uploadsPlayl
       snippet.thumbnails?.default?.url ||
       '',
     bannerUrl: item.brandingSettings?.image?.bannerExternalUrl,
-    subscriberCount: parseInt(stats.subscriberCount || '0', 10),
+    subscriberCount,
+    hiddenSubscriberCount,
     totalViews: parseInt(stats.viewCount || '0', 10),
     totalVideosCount: parseInt(stats.videoCount || '0', 10),
     publishedAt: snippet.publishedAt,
@@ -345,26 +342,38 @@ function extractChannelData(item: any): { channelInfo: ChannelInfo; uploadsPlayl
   return { channelInfo, uploadsPlaylistId };
 }
 
+export interface FetchVideosResult {
+  videos: VideoItem[];
+  warning?: string;
+}
+
 /**
- * Fetch all videos uploaded by the channel in the past 90 days
+ * Fetch all videos uploaded by the channel in the past 90 days.
+ * Includes a video only when its API publishedAt is within the last 90 days.
+ * Raised cap of 2,500 videos with a visible warning if hit.
  */
 export async function fetchPast90DaysVideos(
   uploadsPlaylistId: string,
   apiKey: string
-): Promise<VideoItem[]> {
+): Promise<FetchVideosResult> {
   const baseUrl = 'https://www.googleapis.com/youtube/v3';
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-  const ninetyDaysIso = ninetyDaysAgo.toISOString();
+  // Add a small safety buffer for playlist ordering so items near boundary are not missed
+  const playlistCutoff = new Date(Date.now() - 92 * 24 * 60 * 60 * 1000);
 
-  let playlistVideoItems: Array<{ videoId: string; publishedAt: string; title: string }> = [];
+  const MAX_VIDEOS = 2500;
+  let playlistVideoItems: Array<{ videoId: string; publishedAt?: string }> = [];
   let nextPageToken: string | undefined = undefined;
   let reachedOlder = false;
+  let capHit = false;
 
   // 1. Fetch playlist items page by page until older than 90 days
   do {
-    let url = `${baseUrl}/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=50&key=${apiKey}`;
+    let url = `${baseUrl}/playlistItems?part=snippet,contentDetails&playlistId=${encodeURIComponent(
+      uploadsPlaylistId
+    )}&maxResults=50&key=${apiKey}`;
     if (nextPageToken) {
-      url += `&pageToken=${nextPageToken}`;
+      url += `&pageToken=${encodeURIComponent(nextPageToken)}`;
     }
 
     const res = await fetch(url);
@@ -379,15 +388,14 @@ export async function fetchPast90DaysVideos(
     if (items.length === 0) break;
 
     for (const item of items) {
-      const publishedAt = item.snippet?.publishedAt || item.contentDetails?.videoPublishedAt;
+      const publishedAt = item.contentDetails?.videoPublishedAt || item.snippet?.publishedAt;
       const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId;
 
       if (!videoId) continue;
 
       if (publishedAt) {
         const itemDate = new Date(publishedAt);
-        if (itemDate < ninetyDaysAgo) {
-          // Reached videos older than 90 days
+        if (itemDate < playlistCutoff) {
           reachedOlder = true;
           break;
         }
@@ -395,30 +403,35 @@ export async function fetchPast90DaysVideos(
 
       playlistVideoItems.push({
         videoId,
-        publishedAt: publishedAt || new Date().toISOString(),
-        title: item.snippet?.title || '',
+        publishedAt,
       });
+
+      if (playlistVideoItems.length >= MAX_VIDEOS) {
+        capHit = true;
+        break;
+      }
     }
 
+    if (capHit) break;
     nextPageToken = data.nextPageToken;
-  } while (nextPageToken && !reachedOlder && playlistVideoItems.length < 500);
+  } while (nextPageToken && !reachedOlder);
 
   if (playlistVideoItems.length === 0) {
-    return [];
+    return { videos: [] };
   }
 
-  // 2. Fetch full video statistics and duration in chunks of 50
+  // 2. Fetch full video statistics, duration, status, and live details in chunks of 50
   const videoIds = playlistVideoItems.map((v) => v.videoId);
   const chunks: string[][] = [];
   for (let i = 0; i < videoIds.length; i += 50) {
     chunks.push(videoIds.slice(i, i + 50));
   }
 
-  const enrichedVideos: VideoItem[] = [];
+  const rawVideos: VideoItem[] = [];
 
   for (const chunk of chunks) {
-    const videosUrl = `${baseUrl}/videos?part=snippet,contentDetails,statistics&id=${chunk.join(
-      ','
+    const videosUrl = `${baseUrl}/videos?part=snippet,contentDetails,statistics,status,liveStreamingDetails&id=${encodeURIComponent(
+      chunk.join(',')
     )}&key=${apiKey}`;
     const res = await fetch(videosUrl);
     if (!res.ok) {
@@ -429,18 +442,57 @@ export async function fetchPast90DaysVideos(
     const items = data.items || [];
 
     for (const item of items) {
+      const publishedAt = item.snippet?.publishedAt;
+      if (!publishedAt) continue;
+
+      // Filter strictly to the last 90 days
+      const videoDate = new Date(publishedAt);
+      if (videoDate < ninetyDaysAgo) {
+        continue;
+      }
+
       const durationIso = item.contentDetails?.duration || 'PT0S';
       const durationSeconds = parseISO8601Duration(durationIso);
-      const isShort = durationSeconds <= 60 || item.snippet?.title?.toLowerCase().includes('#shorts');
-      const views = parseInt(item.statistics?.viewCount || '0', 10);
-      const likes = parseInt(item.statistics?.likeCount || '0', 10);
-      const comments = parseInt(item.statistics?.commentCount || '0', 10);
 
-      enrichedVideos.push({
+      // Shorts rule: 180 seconds or less. Do not use title keywords.
+      const isShort = durationSeconds <= 180;
+
+      // Views
+      const views = parseInt(item.statistics?.viewCount || '0', 10);
+
+      // Likes: if hidden by API, show 'hidden'
+      const likes =
+        item.statistics?.likeCount !== undefined
+          ? parseInt(item.statistics.likeCount, 10)
+          : 'hidden';
+
+      // Comments: if disabled/hidden by API, show 'hidden'
+      const comments =
+        item.statistics?.commentCount !== undefined
+          ? parseInt(item.statistics.commentCount, 10)
+          : 'hidden';
+
+      // Category ID
+      const categoryId = item.snippet?.categoryId || '';
+
+      // Default audio language
+      const defaultAudioLanguage =
+        item.snippet?.defaultAudioLanguage || item.snippet?.defaultLanguage || undefined;
+
+      // Made for kids (from part=status)
+      const madeForKids = Boolean(item.status?.madeForKids);
+
+      // Live / premiere flag (from liveStreamingDetails or snippet.liveBroadcastContent)
+      const isLiveOrPremiere = Boolean(
+        item.liveStreamingDetails ||
+          (item.snippet?.liveBroadcastContent && item.snippet.liveBroadcastContent !== 'none')
+      );
+
+      rawVideos.push({
         id: item.id,
         title: item.snippet?.title || 'Untitled',
         description: item.snippet?.description || '',
-        publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
+        publishedAt,
         thumbnail:
           item.snippet?.thumbnails?.maxres?.url ||
           item.snippet?.thumbnails?.standard?.url ||
@@ -455,455 +507,30 @@ export async function fetchPast90DaysVideos(
         views,
         likes,
         comments,
+        categoryId,
+        defaultAudioLanguage,
+        madeForKids,
+        isLiveOrPremiere,
         tags: item.snippet?.tags || [],
         url: `https://www.youtube.com/watch?v=${item.id}`,
-        isOutlier: false, // Calculated after calculating average
+        isOutlier: false,
         outlierMultiplier: 1,
       });
     }
   }
 
   // Calculate avg views and enrich outlier flags
-  const totalViews = enrichedVideos.reduce((acc, v) => acc + v.views, 0);
-  const avgViews = enrichedVideos.length > 0 ? Math.round(totalViews / enrichedVideos.length) : 0;
-
-  return enrichVideosWithOutliers(enrichedVideos, avgViews);
-}
-
-/**
- * Fallback live resolver that fetches public YouTube channel info & RSS video feed
- * with ZERO API key required.
- */
-export async function fetchChannelZeroKey(
-  input: string
-): Promise<{ channelInfo: ChannelInfo; videos: VideoItem[] }> {
-  // Clean input and strip tracking query parameters (e.g., ?si=..., ?feature=...)
-  let clean = input.trim();
-  try {
-    if (clean.includes('?')) {
-      const u = new URL(clean.startsWith('http') ? clean : `https://${clean}`);
-      clean = `${u.origin}${u.pathname}`;
-    }
-  } catch {}
-
-  let channelId = '';
-
-  // 1. Resolve channel ID
-  if (/^UC[\w-]{22}$/.test(clean)) {
-    channelId = clean;
-  } else {
-    const cMatch = clean.match(/\/channel\/(UC[\w-]{22})/);
-    if (cMatch) {
-      channelId = cMatch[1];
-    } else {
-      let fetchUrl = clean;
-      if (!fetchUrl.startsWith('http')) {
-        fetchUrl = fetchUrl.startsWith('@')
-          ? `https://www.youtube.com/${fetchUrl}`
-          : `https://www.youtube.com/@${fetchUrl}`;
-      }
-      try {
-        const pageRes = await fetch(fetchUrl, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          },
-        });
-        const html = await pageRes.text();
-        const idMatch =
-          html.match(/channel_id=([a-zA-Z0-9_-]{20,28})/) ||
-          html.match(/"externalId":"([^"]+)"/);
-        if (idMatch) {
-          channelId = idMatch[1];
-        }
-      } catch (e) {
-        console.error('Failed to resolve handle to channel ID:', e);
-      }
-    }
-  }
-
-  if (!channelId) {
-    throw new Error(
-      `Could not resolve YouTube channel from "${input}". Please check the URL or provide a YouTube Data API v3 key.`
-    );
-  }
-
-  // 2. Fetch Channel Metadata and Videos directly from public HTML (/videos)
-  let title = 'YouTube Channel';
-  let avatar = '';
-  let description = '';
-  let subscriberCount = 0;
-  let rawVideos: VideoItem[] = [];
-
-  try {
-    const pageUrl = `https://www.youtube.com/channel/${channelId}/videos`;
-    const pageRes = await fetch(pageUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-    });
-    const html = await pageRes.text();
-
-    const tMatch =
-      html.match(/<meta property="og:title" content="([^"]+)"/) ||
-      html.match(/<title>([^<]+)<\/title>/);
-    if (tMatch) {
-      title = tMatch[1].replace(' - YouTube', '').trim();
-    }
-
-    const aMatch =
-      html.match(/<meta property="og:image" content="([^"]+)"/) ||
-      html.match(/"avatar":{"thumbnails":\[{"url":"([^"]+)"/);
-    if (aMatch) {
-      avatar = aMatch[1];
-    }
-
-    const dMatch = html.match(/<meta property="og:description" content="([^"]+)"/);
-    if (dMatch) {
-      description = dMatch[1];
-    }
-
-    const subsRegex = /([0-9.]+)\s*([kmbKMB]|million|billion)?\s*subscribers/i;
-    const subsMatch = html.match(subsRegex);
-    if (subsMatch) {
-      const num = parseFloat(subsMatch[1]);
-      const unit = (subsMatch[2] || '').toLowerCase();
-      if (unit.startsWith('m')) subscriberCount = Math.round(num * 1_000_000);
-      else if (unit.startsWith('k')) subscriberCount = Math.round(num * 1_000);
-      else if (unit.startsWith('b')) subscriberCount = Math.round(num * 1_000_000_000);
-      else subscriberCount = Math.round(num);
-    }
-
-    // Try extracting from ytInitialData
-    const m =
-      html.match(/var ytInitialData = ({.*?});<\/script>/) ||
-      html.match(/ytInitialData\s*=\s*({.*?});/);
-    if (m) {
-      try {
-        const data = JSON.parse(m[1]);
-        const lockups: any[] = [];
-        const videoRenderers: any[] = [];
-
-        function search(obj: any) {
-          if (!obj || typeof obj !== 'object') return;
-          if (obj.lockupViewModel) lockups.push(obj.lockupViewModel);
-          if (obj.videoRenderer) videoRenderers.push(obj.videoRenderer);
-          for (const k of Object.keys(obj)) search(obj[k]);
-        }
-        search(data);
-
-        // Process lockupViewModels (YouTube 2025/2026 format)
-        for (const lk of lockups) {
-          const videoId =
-            lk.contentId ||
-            lk.rendererContext?.commandContext?.onTap?.innertubeCommand?.watchEndpoint?.videoId;
-          if (!videoId) continue;
-
-          const vTitle =
-            lk.metadata?.lockupMetadataViewModel?.title?.content ||
-            lk.rendererContext?.accessibilityContext?.label?.split(' by ')[0] ||
-            'Untitled';
-
-          const thumbnail =
-            lk.contentImage?.thumbnailViewModel?.image?.sources?.[0]?.url ||
-            `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-
-          const metadataRows =
-            lk.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows || [];
-
-          let views = 0;
-          let publishedAt = new Date().toISOString();
-
-          for (const row of metadataRows) {
-            for (const part of row.metadataParts || []) {
-              const text = part.text?.content || '';
-              const accessLabel = part.accessibilityLabel || '';
-
-              if (accessLabel.toLowerCase().includes('views') || text.toLowerCase().includes('views')) {
-                const vMatch = (accessLabel || text).match(/([0-9.,]+)\s*([kmbKMB]|million|billion)?/i);
-                if (vMatch) {
-                  const num = parseFloat(vMatch[1].replace(/,/g, ''));
-                  const unit = (vMatch[2] || '').toLowerCase();
-                  if (unit.startsWith('m')) views = Math.round(num * 1_000_000);
-                  else if (unit.startsWith('k')) views = Math.round(num * 1_000);
-                  else if (unit.startsWith('b')) views = Math.round(num * 1_000_000_000);
-                  else views = Math.round(num);
-                }
-              }
-
-              if (accessLabel.toLowerCase().includes('ago') || text.toLowerCase().includes('ago')) {
-                const agoMatch = (accessLabel || text).match(/(\d+)\s*(hour|day|week|month|year)s?\s*ago/i);
-                if (agoMatch) {
-                  const amount = parseInt(agoMatch[1], 10);
-                  const unit = agoMatch[2].toLowerCase();
-                  const d = new Date();
-                  if (unit === 'hour') d.setHours(d.getHours() - amount);
-                  else if (unit === 'day') d.setDate(d.getDate() - amount);
-                  else if (unit === 'week') d.setDate(d.getDate() - amount * 7);
-                  else if (unit === 'month') d.setMonth(d.getMonth() - amount);
-                  else if (unit === 'year') d.setFullYear(d.getFullYear() - amount);
-                  publishedAt = d.toISOString();
-                }
-              }
-            }
-          }
-
-          let durationFormatted = '3:00';
-          let durationSeconds = 180;
-          const badgeText =
-            lk.contentImage?.thumbnailViewModel?.overlays?.[0]?.thumbnailBottomOverlayViewModel?.badges?.[0]?.thumbnailBadgeViewModel?.text;
-          if (badgeText && badgeText.includes(':')) {
-            durationFormatted = badgeText;
-            const parts = badgeText.split(':').map((p: string) => parseInt(p, 10));
-            if (parts.length === 2) durationSeconds = parts[0] * 60 + parts[1];
-            if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-          }
-
-          const isShort = durationSeconds <= 60 || vTitle.toLowerCase().includes('#shorts');
-
-          rawVideos.push({
-            id: videoId,
-            title: vTitle,
-            description: '',
-            publishedAt,
-            thumbnail,
-            duration: isShort ? 'PT45S' : 'PT3M30S',
-            durationSeconds,
-            durationFormatted,
-            isShort,
-            views,
-            likes: Math.round(views * 0.04),
-            comments: Math.round(views * 0.005),
-            tags: [],
-            url: `https://www.youtube.com/watch?v=${videoId}`,
-            isOutlier: false,
-            outlierMultiplier: 1,
-          });
-        }
-
-        // Also process standard videoRenderers if lockups weren't found
-        if (rawVideos.length === 0 && videoRenderers.length > 0) {
-          for (const vr of videoRenderers) {
-            const videoId = vr.videoId;
-            if (!videoId) continue;
-            const vTitle = vr.title?.runs?.[0]?.text || vr.title?.simpleText || 'Untitled';
-            const viewsText = vr.viewCountText?.simpleText || vr.viewCountText?.runs?.[0]?.text || '';
-            let views = 0;
-            const vMatch = viewsText.match(/([0-9.,]+)\s*([kmbKMB]|million|billion)?/i);
-            if (vMatch) {
-              const num = parseFloat(vMatch[1].replace(/,/g, ''));
-              const unit = (vMatch[2] || '').toLowerCase();
-              if (unit.startsWith('m')) views = Math.round(num * 1_000_000);
-              else if (unit.startsWith('k')) views = Math.round(num * 1_000);
-              else if (unit.startsWith('b')) views = Math.round(num * 1_000_000_000);
-              else views = Math.round(num);
-            }
-            const durationFormatted = vr.lengthText?.simpleText || '3:00';
-            let durationSeconds = 180;
-            if (durationFormatted.includes(':')) {
-              const parts = durationFormatted.split(':').map((p: string) => parseInt(p, 10));
-              if (parts.length === 2) durationSeconds = parts[0] * 60 + parts[1];
-              if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-            }
-            const isShort = durationSeconds <= 60 || vTitle.toLowerCase().includes('#shorts');
-
-            rawVideos.push({
-              id: videoId,
-              title: vTitle,
-              description: '',
-              publishedAt: new Date().toISOString(),
-              thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-              duration: isShort ? 'PT45S' : 'PT3M30S',
-              durationSeconds,
-              durationFormatted,
-              isShort,
-              views,
-              likes: Math.round(views * 0.04),
-              comments: Math.round(views * 0.005),
-              tags: [],
-              url: `https://www.youtube.com/watch?v=${videoId}`,
-              isOutlier: false,
-              outlierMultiplier: 1,
-            });
-          }
-        }
-      } catch (parseErr) {
-        console.error('ytInitialData parse error:', parseErr);
-      }
-    }
-  } catch (e) {
-    console.error('Channel page scrape error:', e);
-  }
-
-  // 2b. Also fetch YouTube Shorts if channel is Shorts-first or has few long videos
-  if (rawVideos.length < 15) {
-    try {
-      const shortsUrl = `https://www.youtube.com/channel/${channelId}/shorts`;
-      const shortsRes = await fetch(shortsUrl, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-      });
-      const shortsHtml = await shortsRes.text();
-      const sm =
-        shortsHtml.match(/var ytInitialData = ({.*?});<\/script>/) ||
-        shortsHtml.match(/ytInitialData\s*=\s*({.*?});/);
-      if (sm) {
-        const sData = JSON.parse(sm[1]);
-        const shortsItems: any[] = [];
-        function searchShorts(obj: any) {
-          if (!obj || typeof obj !== 'object') return;
-          if (obj.shortsLockupViewModel) shortsItems.push(obj.shortsLockupViewModel);
-          if (obj.reelItemRenderer) shortsItems.push(obj.reelItemRenderer);
-          for (const k of Object.keys(obj)) searchShorts(obj[k]);
-        }
-        searchShorts(sData);
-
-        for (const item of shortsItems) {
-          const videoId =
-            item.videoId ||
-            item.onTap?.innertubeCommand?.reelWatchEndpoint?.videoId ||
-            item.entityId?.replace('shorts-shelf-item-', '');
-          if (!videoId || rawVideos.some((v) => v.id === videoId)) continue;
-
-          const vTitle =
-            item.overlayMetadata?.primaryText?.content ||
-            item.headline?.simpleText ||
-            item.accessibilityText?.split(',')[0] ||
-            'Short Video';
-
-          let views = 0;
-          const viewText =
-            item.overlayMetadata?.secondaryText?.content ||
-            item.viewCountText?.simpleText ||
-            item.accessibilityText ||
-            '';
-          const vMatch =
-            viewText.match(/([0-9.,]+)\s*([kmbKMB]|million|billion)?\s*views/i) ||
-            viewText.match(/([0-9.,]+)\s*([kmbKMB]|million|billion)?/i);
-          if (vMatch) {
-            const num = parseFloat(vMatch[1].replace(/,/g, ''));
-            const unit = (vMatch[2] || '').toLowerCase();
-            if (unit.startsWith('m')) views = Math.round(num * 1_000_000);
-            else if (unit.startsWith('k')) views = Math.round(num * 1_000);
-            else if (unit.startsWith('b')) views = Math.round(num * 1_000_000_000);
-            else views = Math.round(num);
-          }
-
-          const thumbnail =
-            item.thumbnailViewModel?.thumbnailViewModel?.image?.sources?.[0]?.url ||
-            item.thumbnail?.thumbnails?.[0]?.url ||
-            `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-
-          rawVideos.push({
-            id: videoId,
-            title: vTitle,
-            description: '',
-            publishedAt: new Date().toISOString(),
-            thumbnail,
-            duration: 'PT35S',
-            durationSeconds: 35,
-            durationFormatted: '0:35',
-            isShort: true,
-            views,
-            likes: Math.round(views * 0.05),
-            comments: Math.round(views * 0.008),
-            tags: [],
-            url: `https://www.youtube.com/shorts/${videoId}`,
-            isOutlier: false,
-            outlierMultiplier: 1,
-          });
-        }
-      }
-    } catch (shortsErr) {
-      console.error('Shorts fetch error:', shortsErr);
-    }
-  }
-
-  // 3. Fallback to RSS Feed if HTML scrape had 0 videos
-  if (rawVideos.length === 0) {
-    try {
-      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-      const rssRes = await fetch(rssUrl, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-      });
-      if (rssRes.ok) {
-        const rssText = await rssRes.text();
-        const entries = rssText.split('<entry>').slice(1);
-
-        for (const entry of entries) {
-          const videoId =
-            (entry.match(/<yt:videoId>([^<]+)<\/yt:videoId>/) || [])[1];
-          if (!videoId) continue;
-          const vTitle = (entry.match(/<title>([^<]+)<\/title>/) || [])[1] || 'Untitled';
-          const publishedAt =
-            (entry.match(/<published>([^<]+)<\/published>/) || [])[1] || new Date().toISOString();
-          const views = parseInt(
-            (entry.match(/<media:statistics views="([^"]+)"/) || [])[1] || '0',
-            10
-          );
-          const likes = parseInt(
-            (entry.match(/<media:starRating count="([^"]+)"/) || [])[1] || '0',
-            10
-          );
-          const isShort =
-            vTitle.toLowerCase().includes('#shorts') ||
-            vTitle.toLowerCase().includes('shorts') ||
-            vTitle.toLowerCase().includes('#short');
-
-          rawVideos.push({
-            id: videoId,
-            title: vTitle,
-            description: '',
-            publishedAt,
-            thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-            duration: isShort ? 'PT45S' : 'PT3M30S',
-            durationSeconds: isShort ? 45 : 210,
-            durationFormatted: isShort ? '0:45' : '3:30',
-            isShort,
-            views,
-            likes,
-            comments: Math.round(likes * 0.08),
-            tags: [],
-            url: `https://www.youtube.com/watch?v=${videoId}`,
-            isOutlier: false,
-            outlierMultiplier: 1,
-          });
-        }
-      }
-    } catch (rssErr) {
-      console.error('RSS fetch error:', rssErr);
-    }
-  }
-
-  if (rawVideos.length === 0) {
-    throw new Error(
-      `Could not retrieve public videos for channel "${title}". Please verify the URL or add a YouTube Data API v3 key in Settings.`
-    );
-  }
-
-  const totalViews = rawVideos.reduce((acc, v) => acc + v.views, 0);
+  const totalViews = rawVideos.reduce((acc, v) => acc + (typeof v.views === 'number' ? v.views : 0), 0);
   const avgViews = rawVideos.length > 0 ? Math.round(totalViews / rawVideos.length) : 0;
+  const enrichedVideos = enrichVideosWithOutliers(rawVideos, avgViews);
 
-  const channelInfo: ChannelInfo = {
-    id: channelId,
-    title,
-    handle: `@${title.replace(/\s+/g, '')}`,
-    description,
-    avatarUrl: avatar,
-    subscriberCount,
-    totalViews: totalViews * 5, // Estimated lifetime views baseline
-    totalVideosCount: rawVideos.length,
+  let warning: string | undefined = undefined;
+  if (capHit) {
+    warning = `Channel upload cap of ${MAX_VIDEOS} videos reached. Some older uploads within the 90-day window may not be displayed.`;
+  }
+
+  return {
+    videos: enrichedVideos,
+    warning,
   };
-
-  const enrichedVideos = enrichVideosWithOutliers(rawVideos, avgViews, channelInfo);
-
-  return { channelInfo, videos: enrichedVideos };
 }

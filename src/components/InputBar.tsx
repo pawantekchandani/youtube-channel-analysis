@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Sparkles, Loader2, PlayCircle, ArrowRight } from 'lucide-react';
+import { Search, Loader2, ArrowRight } from 'lucide-react';
 
 interface InputBarProps {
-  onAnalyze: (query: string, isDemo?: boolean, demoPreset?: 'fireship' | 'mrbeast' | 'aliabdaal') => void;
+  onAnalyze: (query: string) => void;
   isLoading: boolean;
   loadingStep?: string;
   hasApiKey: boolean;
+  onOpenSettings?: () => void;
 }
 
 export const InputBar: React.FC<InputBarProps> = ({
@@ -15,17 +16,14 @@ export const InputBar: React.FC<InputBarProps> = ({
   isLoading,
   loadingStep = 'Analyzing channel...',
   hasApiKey,
+  onOpenSettings,
 }) => {
   const [query, setQuery] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || isLoading) return;
-    onAnalyze(query.trim(), false);
-  };
-
-  const handleDemoPreset = (preset: 'fireship' | 'mrbeast' | 'aliabdaal') => {
-    onAnalyze('', true, preset);
+    onAnalyze(query.trim());
   };
 
   return (
@@ -88,44 +86,20 @@ export const InputBar: React.FC<InputBarProps> = ({
         </div>
       )}
 
-      {/* Presets and Demo Notice Bar */}
+      {/* Status Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs">
-        <div className="flex items-center gap-2 text-zinc-400">
-          <span className="flex items-center gap-1 text-zinc-400">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Instant Demo:
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleDemoPreset('fireship')}
-              disabled={isLoading}
-              className="px-2.5 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition font-medium"
-            >
-              🔥 Fireship
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoPreset('mrbeast')}
-              disabled={isLoading}
-              className="px-2.5 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition font-medium"
-            >
-              🏆 MrBeast
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoPreset('aliabdaal')}
-              disabled={isLoading}
-              className="px-2.5 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition font-medium"
-            >
-              📚 Ali Abdaal
-            </button>
-          </div>
+        <div className="text-xs text-zinc-400">
+          Accurate public numbers from YouTube Data API v3 for the past 90 days
         </div>
 
         {!hasApiKey ? (
-          <span className="text-[11px] text-blue-400/90 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
-            ⚡ Zero-Key Live Mode active: You can analyze any YouTube channel URL or @handle immediately!
-          </span>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="text-[11px] text-amber-400/90 bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/20 hover:bg-amber-500/20 transition cursor-pointer"
+          >
+            ⚠️ YouTube Data API v3 key required — Configure in Settings
+          </button>
         ) : (
           <span className="text-[11px] text-emerald-400/90 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
             🟢 YouTube Data API v3 connected

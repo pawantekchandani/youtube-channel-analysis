@@ -7,20 +7,18 @@ export interface VideoItem {
   duration: string; // ISO 8601 string (e.g. PT12M30S)
   durationSeconds: number;
   durationFormatted: string; // e.g. "12:30"
-  isShort: boolean;
+  isShort: boolean; // duration <= 180 seconds
   views: number;
-  likes: number;
-  comments: number;
+  likes: number | 'hidden';
+  comments: number | 'hidden';
+  categoryId: string;
+  defaultAudioLanguage?: string;
+  madeForKids: boolean;
+  isLiveOrPremiere: boolean;
   tags: string[];
   url: string;
   isOutlier: boolean; // > 2x average views
   outlierMultiplier: number; // e.g. 2.45
-  estimatedRevenue?: {
-    min: number;
-    max: number;
-    minInr: number;
-    maxInr: number;
-  };
 }
 
 export interface ChannelInfo {
@@ -31,7 +29,8 @@ export interface ChannelInfo {
   customUrl?: string;
   avatarUrl: string;
   bannerUrl?: string;
-  subscriberCount: number;
+  subscriberCount: number | 'hidden';
+  hiddenSubscriberCount: boolean;
   totalViews: number;
   totalVideosCount: number;
   publishedAt?: string;
@@ -55,17 +54,6 @@ export interface KPIData {
   outlierRate: number; // percentage of videos that are outliers
   highestViews: number;
   lowestViews: number;
-  estimatedRevenue?: {
-    min90d: number;
-    max90d: number;
-    avgMonthlyMin: number;
-    avgMonthlyMax: number;
-    rpmAverage: number;
-    min90dInr: number;
-    max90dInr: number;
-    avgMonthlyMinInr: number;
-    avgMonthlyMaxInr: number;
-  };
 }
 
 export interface GeminiInsights {
@@ -96,7 +84,8 @@ export interface ChannelAnalysisResponse {
   geminiInsights: GeminiInsights | null;
   fetchedAt: string;
   daysRange: number;
-  source: 'api' | 'demo' | 'rss';
+  source: 'api';
+  warning?: string;
 }
 
 export interface ApiSettings {

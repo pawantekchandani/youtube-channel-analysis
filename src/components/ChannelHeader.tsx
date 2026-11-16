@@ -2,35 +2,35 @@
 
 import React, { useState } from 'react';
 import { ChannelInfo } from '@/types';
-import { formatCompactNumber } from '@/lib/formatters';
+import { formatCompactNumber, formatCalendarDate } from '@/lib/formatters';
 import {
   ExternalLink,
   Users,
   Video,
   Eye,
   Calendar,
-  Sparkles,
-  Zap,
   ShieldCheck,
   FileDown,
 } from 'lucide-react';
 
 interface ChannelHeaderProps {
   channel: ChannelInfo;
-  source?: 'api' | 'demo' | 'rss';
-  isDemo?: boolean;
+  source?: 'api';
   onExportMarkdown?: () => void;
 }
 
 export const ChannelHeader: React.FC<ChannelHeaderProps> = ({
   channel,
-  source,
-  isDemo,
   onExportMarkdown,
 }) => {
   const [imageError, setImageError] = useState(false);
 
   const initial = (channel.title || 'Y').charAt(0).toUpperCase();
+
+  const formattedSubscribers =
+    channel.hiddenSubscriberCount || channel.subscriberCount === 'hidden'
+      ? 'Hidden'
+      : formatCompactNumber(channel.subscriberCount);
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-6 shadow-xl">
@@ -53,16 +53,6 @@ export const ChannelHeader: React.FC<ChannelHeaderProps> = ({
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-red-600 via-rose-600 to-amber-600 flex items-center justify-center font-extrabold text-2xl sm:text-3xl text-white shadow-lg ring-2 ring-white/10">
                 {initial}
               </div>
-            )}
-            {isDemo && (
-              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-amber-500 text-[10px] font-bold text-zinc-950 flex items-center gap-0.5 shadow">
-                <Sparkles className="w-2.5 h-2.5" /> Demo
-              </span>
-            )}
-            {source === 'rss' && (
-              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-blue-500 text-[10px] font-bold text-white flex items-center gap-0.5 shadow">
-                <Zap className="w-2.5 h-2.5" /> Live
-              </span>
             )}
           </div>
 
@@ -90,43 +80,44 @@ export const ChannelHeader: React.FC<ChannelHeaderProps> = ({
               {channel.description || 'No description provided.'}
             </p>
 
-            {/* Badges & Actions */}
+            {/* Badges & Metadata */}
             <div className="flex items-center gap-2 mt-2.5 flex-wrap text-[11px]">
               <span className="px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-300 border border-zinc-700/60 flex items-center gap-1">
                 <Calendar className="w-3 h-3 text-red-400" /> Past 90 Days Analysis Window
               </span>
 
-              {source === 'rss' && (
-                <span className="px-2 py-0.5 rounded-md bg-blue-950/50 text-blue-300 border border-blue-500/30 flex items-center gap-1 font-medium">
-                  <Zap className="w-3 h-3 text-blue-400" /> Live Public Feed (Zero-Key Mode)
-                </span>
-              )}
-
-              {source === 'api' && (
-                <span className="px-2 py-0.5 rounded-md bg-emerald-950/50 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-medium">
-                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> YouTube Data API v3 Connected
-                </span>
-              )}
+              <span className="px-2 py-0.5 rounded-md bg-emerald-950/50 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-medium">
+                <ShieldCheck className="w-3 h-3 text-emerald-400" /> YouTube Data API v3 Connected
+              </span>
 
               {channel.country && (
                 <span className="px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-400 border border-zinc-700/60">
                   📍 {channel.country}
                 </span>
               )}
+
+              {channel.publishedAt && (
+                <span className="px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-400 border border-zinc-700/60">
+                  Joined: {formatCalendarDate(channel.publishedAt)}
+                </span>
+              )}
+
+              <span className="px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-400 border border-zinc-700/60 font-mono text-[10px]">
+                ID: {channel.id}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Stats & Export Button */}
+        {/* Lifetime Stats & Export Button */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 self-stretch md:self-auto border-t md:border-t-0 md:border-l border-zinc-800 pt-4 md:pt-0 md:pl-6">
-          {/* Lifetime Stats Counters */}
           <div className="flex items-center justify-around sm:justify-end gap-4 sm:gap-6">
             <div className="text-center md:text-right">
               <div className="flex items-center justify-center md:justify-end gap-1 text-xs text-zinc-400 mb-0.5">
                 <Users className="w-3.5 h-3.5 text-zinc-400" /> Subscribers
               </div>
               <div className="text-lg sm:text-xl font-bold text-white">
-                {formatCompactNumber(channel.subscriberCount)}
+                {formattedSubscribers}
               </div>
             </div>
 
