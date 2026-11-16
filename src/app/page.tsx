@@ -26,6 +26,13 @@ export default function HomePage() {
     youtubeApiKey: '',
     geminiApiKey: '',
   });
+  const [serverConfig, setServerConfig] = useState<{
+    serverYoutubeKey: boolean;
+    serverGeminiKey: boolean;
+  }>({
+    serverYoutubeKey: false,
+    serverGeminiKey: false,
+  });
 
   // Load API keys from localStorage on mount
   useEffect(() => {
@@ -39,6 +46,26 @@ export default function HomePage() {
       // LocalStorage access fallback
     }
   }, []);
+
+  // Fetch server API key availability on mount
+  useEffect(() => {
+    fetch('/api/config')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((config) => {
+        if (config) {
+          setServerConfig({
+            serverYoutubeKey: Boolean(config.serverYoutubeKey),
+            serverGeminiKey: Boolean(config.serverGeminiKey),
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch server config:', err);
+      });
+  }, []);
+
+  const hasYtKey = Boolean(apiSettings.youtubeApiKey?.trim()) || serverConfig.serverYoutubeKey;
+  const hasGeminiKey = Boolean(apiSettings.geminiApiKey?.trim()) || serverConfig.serverGeminiKey;
 
   const handleSaveSettings = (newSettings: ApiSettings) => {
     setApiSettings(newSettings);
@@ -87,6 +114,8 @@ export default function HomePage() {
       <Header
         onOpenSettings={() => setIsSettingsOpen(true)}
         apiSettings={apiSettings}
+        hasYtKey={hasYtKey}
+        hasGeminiKey={hasGeminiKey}
       />
 
       {/* Main Content Area */}
@@ -106,7 +135,7 @@ export default function HomePage() {
             onAnalyze={handleAnalyze}
             isLoading={isLoading}
             loadingStep={loadingStep}
-            hasApiKey={Boolean(apiSettings.youtubeApiKey)}
+            hasApiKey={hasYtKey}
             onOpenSettings={() => setIsSettingsOpen(true)}
           />
         </section>
@@ -172,7 +201,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {!apiSettings.youtubeApiKey && (
+            {!hasYtKey && (
               <div className="pt-2">
                 <button
                   type="button"

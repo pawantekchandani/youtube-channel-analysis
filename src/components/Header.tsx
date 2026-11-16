@@ -8,14 +8,24 @@ import { ApiSettings } from '@/types';
 interface HeaderProps {
   onOpenSettings: () => void;
   apiSettings: ApiSettings;
+  hasYtKey?: boolean;
+  hasGeminiKey?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   apiSettings,
+  hasYtKey: propHasYtKey,
+  hasGeminiKey: propHasGeminiKey,
 }) => {
-  const hasYtKey = Boolean(apiSettings.youtubeApiKey?.trim());
-  const hasGeminiKey = Boolean(apiSettings.geminiApiKey?.trim());
+  const hasYtKey =
+    propHasYtKey !== undefined
+      ? propHasYtKey
+      : Boolean(apiSettings.youtubeApiKey?.trim());
+  const hasGeminiKey =
+    propHasGeminiKey !== undefined
+      ? propHasGeminiKey
+      : Boolean(apiSettings.geminiApiKey?.trim());
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md">
