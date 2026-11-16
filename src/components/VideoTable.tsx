@@ -71,7 +71,8 @@ export const VideoTable: React.FC<VideoTableProps> = ({
           const matchesCategory = video.categoryId.toLowerCase().includes(q);
           const matchesLang = (video.defaultAudioLanguage || '').toLowerCase().includes(q);
           const matchesTags = video.tags.some((t) => t.toLowerCase().includes(q));
-          if (!matchesTitle && !matchesId && !matchesCategory && !matchesLang && !matchesTags) {
+          const matchesSponsor = (video.sponsorName || '').toLowerCase().includes(q);
+          if (!matchesTitle && !matchesId && !matchesCategory && !matchesLang && !matchesTags && !matchesSponsor) {
             return false;
           }
         }
@@ -121,6 +122,9 @@ export const VideoTable: React.FC<VideoTableProps> = ({
       'Default Audio Language',
       'Made For Kids',
       'Live/Premiere',
+      'Sponsored',
+      'Sponsor Name',
+      'Sponsor Source',
       'URL',
     ];
 
@@ -138,6 +142,9 @@ export const VideoTable: React.FC<VideoTableProps> = ({
       v.defaultAudioLanguage || '',
       v.madeForKids ? 'TRUE' : 'FALSE',
       v.isLiveOrPremiere ? 'TRUE' : 'FALSE',
+      v.sponsored,
+      v.sponsorName || '',
+      v.sponsorSource || '',
       v.url,
     ]);
 
@@ -167,6 +174,9 @@ export const VideoTable: React.FC<VideoTableProps> = ({
       'Default Audio Language',
       'Made For Kids',
       'Live/Premiere',
+      'Sponsored',
+      'Sponsor Name',
+      'Sponsor Source',
       'URL',
     ];
 
@@ -192,6 +202,9 @@ export const VideoTable: React.FC<VideoTableProps> = ({
       v.defaultAudioLanguage || '',
       v.madeForKids,
       v.isLiveOrPremiere,
+      v.sponsored,
+      v.sponsorName || '',
+      v.sponsorSource || '',
       v.url,
     ]);
 
@@ -408,6 +421,8 @@ export const VideoTable: React.FC<VideoTableProps> = ({
                 </div>
               </th>
               <th className="py-3 px-3 whitespace-nowrap">Meta</th>
+              <th className="py-3 px-3 whitespace-nowrap">Sponsored</th>
+              <th className="py-3 px-3 whitespace-nowrap">Sponsor</th>
               <th
                 onClick={() => handleSort('multiplier')}
                 className="py-3 px-4 cursor-pointer hover:text-white transition text-right whitespace-nowrap"
@@ -426,7 +441,7 @@ export const VideoTable: React.FC<VideoTableProps> = ({
           <tbody className="divide-y divide-zinc-800/60">
             {filteredAndSortedVideos.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-12 text-zinc-500">
+                <td colSpan={10} className="text-center py-12 text-zinc-500">
                   No videos found matching your filters.
                 </td>
               </tr>
@@ -587,6 +602,52 @@ export const VideoTable: React.FC<VideoTableProps> = ({
                     <td className="py-3 px-3 text-zinc-400 whitespace-nowrap text-xs">
                       <div>Cat: <span className="text-zinc-300 font-mono">{video.categoryId || '—'}</span></div>
                       <div>Lang: <span className="text-zinc-300">{video.defaultAudioLanguage || '—'}</span></div>
+                    </td>
+
+                    {/* Sponsored */}
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      {video.sponsored === 'yes' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold text-xs border border-emerald-500/30">
+                          Yes
+                        </span>
+                      ) : video.sponsored === 'no' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 font-medium text-xs border border-zinc-700/50">
+                          No
+                        </span>
+                      ) : (
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-full bg-zinc-800/60 text-zinc-500 italic text-xs border border-zinc-800"
+                          title="Transcript unavailable to verify sponsorship"
+                        >
+                          Unknown
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Sponsor Name & Source */}
+                    <td className="py-3 px-3 whitespace-nowrap text-xs">
+                      {video.sponsorName ? (
+                        <div>
+                          <div
+                            className="text-zinc-200 font-medium max-w-[130px] truncate"
+                            title={video.sponsorName}
+                          >
+                            {video.sponsorName}
+                          </div>
+                          <div className="text-[10px] text-zinc-500 capitalize">
+                            via {video.sponsorSource}
+                          </div>
+                        </div>
+                      ) : video.sponsored === 'yes' ? (
+                        <div>
+                          <div className="text-zinc-400 italic text-xs">Unnamed</div>
+                          <div className="text-[10px] text-zinc-500 capitalize">
+                            via {video.sponsorSource || 'flag'}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}
                     </td>
 
                     {/* Multiplier Badge */}

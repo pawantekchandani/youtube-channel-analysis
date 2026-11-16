@@ -19,6 +19,11 @@ export interface VideoItem {
   url: string;
   isOutlier: boolean; // > 2x average views
   outlierMultiplier: number; // e.g. 2.45
+
+  // Sponsored content detection
+  sponsored: 'yes' | 'no' | 'unknown';
+  sponsorName: string | null;
+  sponsorSource: 'flag' | 'description' | 'transcript' | null;
 }
 
 export interface ChannelInfo {
@@ -48,6 +53,11 @@ export interface FormatKPIs {
   averageDurationSeconds: number;
 }
 
+export interface SponsorStat {
+  name: string;
+  count: number;
+}
+
 export interface KPIData {
   totalVideos90d: number;
   weeklyUploadFrequency: number; // uploads per 7 days
@@ -67,6 +77,10 @@ export interface KPIData {
   lowestViews: number;
   long: FormatKPIs;
   shorts: FormatKPIs;
+  sponsoredCount: number;
+  sponsoredPercentage: number;
+  unknownCount: number;
+  sponsors: SponsorStat[];
 }
 
 export interface GeminiInsights {

@@ -4,7 +4,7 @@ import React from 'react';
 import { FormatKPIs, KPIData } from '@/types';
 import { formatCompactNumber } from '@/lib/formatters';
 import { formatDuration } from '@/lib/youtube';
-import { Film, CalendarDays, Clock, Eye, PieChart, Smartphone, Timer, Library } from 'lucide-react';
+import { Film, CalendarDays, Clock, Eye, PieChart, Smartphone, Timer, Library, Handshake } from 'lucide-react';
 
 interface KPICardsProps {
   kpis: KPIData;
@@ -110,7 +110,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis, allTimeVideos }) => {
       </div>
 
       {/* Overall: total uploads and format mix */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="All-Time Videos"
           icon={<Library className="w-4 h-4" />}
@@ -126,6 +126,14 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis, allTimeVideos }) => {
           value={kpis.totalVideos90d}
           unit="videos / 90d"
           footer="Long-form and Shorts combined"
+        />
+        <StatCard
+          label="Sponsored (90d)"
+          icon={<Handshake className="w-4 h-4" />}
+          iconClass="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+          value={kpis.sponsoredCount}
+          unit="videos"
+          footer={`${kpis.sponsoredPercentage}% of 90d videos (${kpis.unknownCount} unknown)`}
         />
 
         <div className={cardClass}>
@@ -166,6 +174,31 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis, allTimeVideos }) => {
           </div>
         </div>
       </div>
+
+      {/* Detected sponsors list */}
+      {kpis.sponsors && kpis.sponsors.length > 0 && (
+        <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 p-4 shadow-lg">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Handshake className="w-3.5 h-3.5 text-emerald-400" /> Detected Sponsors ({kpis.sponsors.length})
+            </span>
+            <span className="text-[11px] text-zinc-500">Sorted by frequency</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {kpis.sponsors.map((sponsor) => (
+              <span
+                key={sponsor.name}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-xs text-zinc-200"
+              >
+                <span className="font-medium text-white">{sponsor.name}</span>
+                <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-mono text-[10px] font-semibold border border-emerald-500/30">
+                  {sponsor.count} {sponsor.count === 1 ? 'video' : 'videos'}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <FormatRow
         title="Long-form (over 3 min)"
