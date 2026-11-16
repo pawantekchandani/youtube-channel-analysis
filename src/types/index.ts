@@ -37,6 +37,16 @@ export interface ChannelInfo {
   country?: string;
 }
 
+/** Cadence and view KPIs for one format (Long-form or Shorts) over the 90-day window. */
+export interface FormatKPIs {
+  count: number;
+  weeklyUploadFrequency: number; // uploads per 7 days
+  averageUploadGapDays: number; // avg days between consecutive uploads of this format
+  averageViews: number;
+  medianViews: number;
+  totalViews: number;
+}
+
 export interface KPIData {
   totalVideos90d: number;
   weeklyUploadFrequency: number; // uploads per 7 days
@@ -54,6 +64,8 @@ export interface KPIData {
   outlierRate: number; // percentage of videos that are outliers
   highestViews: number;
   lowestViews: number;
+  long: FormatKPIs;
+  shorts: FormatKPIs;
 }
 
 export interface GeminiInsights {

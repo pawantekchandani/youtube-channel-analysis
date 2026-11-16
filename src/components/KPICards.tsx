@@ -1,23 +1,97 @@
 'use client';
 
 import React from 'react';
-import { KPIData } from '@/types';
+import { FormatKPIs, KPIData } from '@/types';
 import { formatCompactNumber } from '@/lib/formatters';
-import {
-  Film,
-  CalendarDays,
-  Clock,
-  Eye,
-  PieChart,
-} from 'lucide-react';
+import { Film, CalendarDays, Clock, Eye, PieChart, Smartphone } from 'lucide-react';
 
 interface KPICardsProps {
   kpis: KPIData;
 }
 
+const cardClass =
+  'relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition';
+
+interface StatCardProps {
+  label: string;
+  icon: React.ReactNode;
+  iconClass: string;
+  value: React.ReactNode;
+  unit: string;
+  footer: React.ReactNode;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ label, icon, iconClass, value, unit, footer }) => (
+  <div className={cardClass}>
+    <div className="flex items-center justify-between">
+      <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{label}</span>
+      <div className={`p-2 rounded-xl border ${iconClass}`}>{icon}</div>
+    </div>
+    <div className="mt-3 flex items-baseline gap-2">
+      <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{value}</span>
+      <span className="text-xs text-zinc-400 font-medium">{unit}</span>
+    </div>
+    <div className="mt-3 text-[11px] text-zinc-400">{footer}</div>
+  </div>
+);
+
+const paceLabel = (perWeek: number) =>
+  perWeek >= 3 ? '🔥 High output pace' : perWeek >= 1 ? '⚡ Consistent weekly' : '🐢 Low frequency';
+
+interface FormatRowProps {
+  title: string;
+  accentClass: string;
+  icon: React.ReactNode;
+  iconClass: string;
+  data: FormatKPIs;
+}
+
+const FormatRow: React.FC<FormatRowProps> = ({ title, accentClass, icon, iconClass, data }) => (
+  <div className="space-y-3">
+    <div className="flex items-center gap-2 px-1">
+      <span className={`w-2 h-2 rounded-full ${accentClass}`} />
+      <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">{title}</span>
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <StatCard
+        label="Videos"
+        icon={icon}
+        iconClass={iconClass}
+        value={data.count}
+        unit="videos / 90d"
+        footer={`Total views: ${formatCompactNumber(data.totalViews)}`}
+      />
+      <StatCard
+        label="Weekly Frequency"
+        icon={<CalendarDays className="w-4 h-4" />}
+        iconClass="bg-blue-500/10 text-blue-400 border-blue-500/20"
+        value={data.weeklyUploadFrequency}
+        unit="vids / week"
+        footer={data.count > 0 ? paceLabel(data.weeklyUploadFrequency) : 'No uploads in 90 days'}
+      />
+      <StatCard
+        label="Avg Upload Gap"
+        icon={<Clock className="w-4 h-4" />}
+        iconClass="bg-amber-500/10 text-amber-400 border-amber-500/20"
+        value={data.count > 1 ? data.averageUploadGapDays : '—'}
+        unit="days"
+        footer="Between consecutive uploads"
+      />
+      <StatCard
+        label="Average Views"
+        icon={<Eye className="w-4 h-4" />}
+        iconClass="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+        value={formatCompactNumber(data.averageViews)}
+        unit="/ video"
+        footer={`Median: ${formatCompactNumber(data.medianViews)}`}
+      />
+    </div>
+  </div>
+);
+
 export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       {/* Section Header */}
       <div className="flex items-center justify-between px-1">
         <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
@@ -25,110 +99,18 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
         </span>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {/* Total Videos (90d) */}
-        <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Total Videos
-            </span>
-            <div className="p-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20">
-              <Film className="w-4 h-4" />
-            </div>
-          </div>
+      {/* Overall: total uploads and format mix */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <StatCard
+          label="Total Videos"
+          icon={<Film className="w-4 h-4" />}
+          iconClass="bg-red-500/10 text-red-400 border-red-500/20"
+          value={kpis.totalVideos90d}
+          unit="videos / 90d"
+          footer="Long-form and Shorts combined"
+        />
 
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {kpis.totalVideos90d}
-            </span>
-            <span className="text-xs text-zinc-400 font-medium">videos / 90d</span>
-          </div>
-
-          <div className="mt-3 flex items-center gap-1.5 text-[11px] text-zinc-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span>Active catalog horizon</span>
-          </div>
-        </div>
-
-        {/* Weekly Upload Frequency */}
-        <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Weekly Frequency
-            </span>
-            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              <CalendarDays className="w-4 h-4" />
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {kpis.weeklyUploadFrequency}
-            </span>
-            <span className="text-xs text-zinc-400 font-medium">vids / week</span>
-          </div>
-
-          <div className="mt-3 text-[11px] text-zinc-400 flex items-center justify-between">
-            <span>
-              {kpis.weeklyUploadFrequency >= 3
-                ? '🔥 High output pace'
-                : kpis.weeklyUploadFrequency >= 1
-                ? '⚡ Consistent weekly'
-                : '🐢 Low frequency'}
-            </span>
-          </div>
-        </div>
-
-        {/* Average Upload Gap */}
-        <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Avg Upload Gap
-            </span>
-            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {kpis.averageUploadGapDays}
-            </span>
-            <span className="text-xs text-zinc-400 font-medium">days</span>
-          </div>
-
-          <div className="mt-3 text-[11px] text-zinc-400">
-            <span>Between consecutive uploads</span>
-          </div>
-        </div>
-
-        {/* Average Views */}
-        <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Average Views
-            </span>
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Eye className="w-4 h-4" />
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {formatCompactNumber(kpis.averageViews)}
-            </span>
-            <span className="text-xs text-zinc-400 font-medium">/ video</span>
-          </div>
-
-          <div className="mt-3 flex items-center justify-between text-[11px] text-zinc-400">
-            <span>Median: {formatCompactNumber(kpis.medianViews)}</span>
-            <span className="text-emerald-400 font-medium">90d Avg</span>
-          </div>
-        </div>
-
-        {/* Shorts vs. Long-form Ratio */}
-        <div className="relative overflow-hidden rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 shadow-lg group hover:border-zinc-700 transition">
+        <div className={cardClass}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
               Shorts vs Long
@@ -140,9 +122,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
 
           <div className="mt-3 flex items-baseline justify-between">
             <div className="flex items-baseline gap-1">
-              <span className="text-xl sm:text-2xl font-bold text-white">
-                {kpis.longPercentage}%
-              </span>
+              <span className="text-xl sm:text-2xl font-bold text-white">{kpis.longPercentage}%</span>
               <span className="text-[10px] text-zinc-400 uppercase">Long</span>
             </div>
             <span className="text-xs text-zinc-600">/</span>
@@ -154,7 +134,6 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
             </div>
           </div>
 
-          {/* Progress bar */}
           <div className="mt-3 h-2 w-full rounded-full bg-zinc-800 overflow-hidden flex">
             <div
               className="h-full bg-red-500 transition-all duration-500"
@@ -169,6 +148,22 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
           </div>
         </div>
       </div>
+
+      <FormatRow
+        title="Long-form (over 3 min)"
+        accentClass="bg-red-500"
+        icon={<Film className="w-4 h-4" />}
+        iconClass="bg-red-500/10 text-red-400 border-red-500/20"
+        data={kpis.long}
+      />
+
+      <FormatRow
+        title="Shorts (3 min or less)"
+        accentClass="bg-purple-500"
+        icon={<Smartphone className="w-4 h-4" />}
+        iconClass="bg-purple-500/10 text-purple-400 border-purple-500/20"
+        data={kpis.shorts}
+      />
     </div>
   );
 };
