@@ -1,4 +1,4 @@
-import { ChannelInfo, KPIData, VideoItem } from '@/types';
+import { ChannelInfo, FormatKPIs, KPIData, VideoItem } from '@/types';
 
 /**
  * Parses an ISO 8601 duration string (e.g., "PT15M33S", "PT58S", "PT1H2M10S") into seconds.
@@ -101,6 +101,42 @@ export function parseChannelInput(input: string): { type: 'handle' | 'id' | 'use
 }
 
 /**
+ * Computes cadence and view KPIs for a subset of videos (one format) in the 90-day window.
+ */
+export function calculateFormatKPIs(videos: VideoItem[]): FormatKPIs {
+  const count = videos.length;
+  if (count === 0) {
+    return {
+      count: 0,
+      weeklyUploadFrequency: 0,
+      averageUploadGapDays: 0,
+      averageViews: 0,
+      medianViews: 0,
+      totalViews: 0,
+    };
+  }
+
+  const totalViews = videos.reduce((acc, v) => acc + v.views, 0);
+  const averageViews = Math.round(totalViews / count);
+
+  const sortedViews = videos.map((v) => v.views).sort((a, b) => a - b);
+  const mid = Math.floor(count / 2);
+  const medianViews =
+    count % 2 !== 0 ? sortedViews[mid] : Math.round((sortedViews[mid - 1] + sortedViews[mid]) / 2);
+
+  const weeklyUploadFrequency = parseFloat((count / (90 / 7)).toFixed(1));
+
+  const times = videos.map((v) => new Date(v.publishedAt).getTime()).sort((a, b) => a - b);
+  let averageUploadGapDays = 0;
+  if (times.length > 1) {
+    const totalGapDays = (times[times.length - 1] - times[0]) / (1000 * 60 * 60 * 24);
+    averageUploadGapDays = parseFloat((totalGapDays / (times.length - 1)).toFixed(1));
+  }
+
+  return { count, weeklyUploadFrequency, averageUploadGapDays, averageViews, medianViews, totalViews };
+}
+
+/**
  * Calculates all KPI metrics strictly from accurate video API data in the past 90 days.
  */
 export function calculateKPIs(videos: VideoItem[]): KPIData {
@@ -124,6 +160,8 @@ export function calculateKPIs(videos: VideoItem[]): KPIData {
       outlierRate: 0,
       highestViews: 0,
       lowestViews: 0,
+      long: calculateFormatKPIs([]),
+      shorts: calculateFormatKPIs([]),
     };
   }
 
@@ -196,6 +234,8 @@ export function calculateKPIs(videos: VideoItem[]): KPIData {
     outlierRate,
     highestViews,
     lowestViews,
+    long: calculateFormatKPIs(videos.filter((v) => !v.isShort)),
+    shorts: calculateFormatKPIs(videos.filter((v) => v.isShort)),
   };
 }
 
