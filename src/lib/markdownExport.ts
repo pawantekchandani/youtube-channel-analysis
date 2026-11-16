@@ -62,9 +62,30 @@ export function generateMarkdownReport(data: ChannelAnalysisResponse): string {
   lines.push(`| **Lowest Video Views** | ${formatCompactNumber(kpis.lowestViews)} | Minimum performer in window |`);
   lines.push('');
 
-  // 3. Gemini Strategic AI Niche & Content Dossier
+  // 3. Sponsored Content Analysis
+  lines.push(`## 3. Sponsored Content Analysis (90d)`);
+  lines.push(`| Metric | Value | Insights / Benchmark |`);
+  lines.push(`| :--- | :--- | :--- |`);
+  lines.push(`| **Sponsored Uploads** | ${kpis.sponsoredCount} videos (${kpis.sponsoredPercentage}%) | Videos identified with commercial sponsorship |`);
+  lines.push(`| **Inconclusive / Unknown** | ${kpis.unknownCount} videos | Transcripts unavailable and no metadata markers |`);
+  lines.push('');
+
+  if (kpis.sponsors && kpis.sponsors.length > 0) {
+    lines.push(`### Detected Sponsors`);
+    lines.push(`| Sponsor | Videos |`);
+    lines.push(`| :--- | :--- |`);
+    kpis.sponsors.forEach((s) => {
+      lines.push(`| **${s.name}** | ${s.count} |`);
+    });
+    lines.push('');
+  } else {
+    lines.push(`*No sponsored videos detected in the 90-day window.*`);
+    lines.push('');
+  }
+
+  // 4. Gemini Strategic AI Niche & Content Dossier
   if (geminiInsights) {
-    lines.push(`## 3. Gemini AI Strategic Niche & Algorithmic Dossier`);
+    lines.push(`## 4. Gemini AI Strategic Niche & Algorithmic Dossier`);
     lines.push(`- **Primary Niche:** ${geminiInsights.niche}`);
     lines.push(`- **Sub-Niche:** ${geminiInsights.subNiche}`);
     lines.push('');
@@ -124,9 +145,9 @@ export function generateMarkdownReport(data: ChannelAnalysisResponse): string {
     }
   }
 
-  // 4. Viral Outlier Videos
+  // 5. Viral Outlier Videos
   if (outliers.length > 0) {
-    lines.push(`## 4. Viral Outlier Videos (>2x Channel Average Views)`);
+    lines.push(`## 5. Viral Outlier Videos (>2x Channel Average Views)`);
     lines.push(`| Title | Views | Multiplier | Duration | Link |`);
     lines.push(`| :--- | :--- | :--- | :--- | :--- |`);
     outliers.forEach((v) => {
@@ -136,10 +157,10 @@ export function generateMarkdownReport(data: ChannelAnalysisResponse): string {
     lines.push('');
   }
 
-  // 5. Full Video Performance Catalog
-  lines.push(`## 5. Complete Video Performance Catalog (${videos.length} Videos)`);
-  lines.push(`| # | Video ID | Title | Published | Duration (s) | Format | Views | Likes | Comments | Category | Audio Lang | Made for Kids | Live/Premiere | Link |`);
-  lines.push(`| :-: | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |`);
+  // 6. Full Video Performance Catalog
+  lines.push(`## 6. Complete Video Performance Catalog (${videos.length} Videos)`);
+  lines.push(`| # | Video ID | Title | Published | Duration (s) | Format | Views | Likes | Comments | Sponsored | Sponsor | Category | Audio Lang | Made for Kids | Live/Premiere | Link |`);
+  lines.push(`| :-: | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |`);
   videos.forEach((v, idx) => {
     const cleanTitle = v.title.replace(/\|/g, '-');
     const format = v.isShort ? 'Short' : 'Long-form';
@@ -149,7 +170,9 @@ export function generateMarkdownReport(data: ChannelAnalysisResponse): string {
     const liveStr = v.isLiveOrPremiere ? 'Yes' : 'No';
     const langStr = v.defaultAudioLanguage || '—';
 
-    lines.push(`| ${idx + 1} | ${v.id} | ${cleanTitle} | ${formatCalendarDate(v.publishedAt)} | ${v.durationSeconds}s | ${format} | ${v.views.toLocaleString()} | ${likesStr} | ${commentsStr} | ${v.categoryId || '—'} | ${langStr} | ${kidsStr} | ${liveStr} | [Watch](${v.url}) |`);
+    const sponsorDisplay = v.sponsorName ? v.sponsorName : (v.sponsored === 'yes' ? 'Unnamed' : '—');
+    const sponsoredDisplay = v.sponsored === 'yes' ? 'Yes' : (v.sponsored === 'no' ? 'No' : 'Unknown');
+    lines.push(`| ${idx + 1} | ${v.id} | ${cleanTitle} | ${formatCalendarDate(v.publishedAt)} | ${v.durationSeconds}s | ${format} | ${v.views.toLocaleString()} | ${likesStr} | ${commentsStr} | ${sponsoredDisplay} | ${sponsorDisplay} | ${v.categoryId || '—'} | ${langStr} | ${kidsStr} | ${liveStr} | [Watch](${v.url}) |`);
   });
   lines.push('');
 

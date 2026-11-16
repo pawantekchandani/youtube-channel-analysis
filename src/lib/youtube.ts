@@ -1,4 +1,11 @@
-import { ChannelInfo, FormatKPIs, KPIData, VideoItem } from '@/types';
+import { ChannelInfo, FormatKPIs, KPIData, VideoItem, SponsorStat } from '@/types';
+import {
+  detectSponsorInText,
+  evaluateSponsorship,
+  fetchVideoTranscript,
+  mapConcurrent,
+  TextMatchResult,
+} from './sponsor';
 
 /**
  * Parses an ISO 8601 duration string (e.g., "PT15M33S", "PT58S", "PT1H2M10S") into seconds.
@@ -174,6 +181,10 @@ export function calculateKPIs(videos: VideoItem[]): KPIData {
       lowestViews: 0,
       long: calculateFormatKPIs([]),
       shorts: calculateFormatKPIs([]),
+      sponsoredCount: 0,
+      sponsoredPercentage: 0,
+      unknownCount: 0,
+      sponsors: [],
     };
   }
 
@@ -229,6 +240,26 @@ export function calculateKPIs(videos: VideoItem[]): KPIData {
   const outlierCount = outlierVideos.length;
   const outlierRate = parseFloat(((outlierCount / totalVideos90d) * 100).toFixed(1));
 
+  // Sponsored content metrics
+  const sponsoredVideos = videos.filter((v) => v.sponsored === 'yes');
+  const sponsoredCount = sponsoredVideos.length;
+  const sponsoredPercentage =
+    totalVideos90d > 0 ? Math.round((sponsoredCount / totalVideos90d) * 100) : 0;
+  const unknownCount = videos.filter((v) => v.sponsored === 'unknown').length;
+
+  const sponsorMap = new Map<string, number>();
+  for (const v of sponsoredVideos) {
+    const name = v.sponsorName?.trim() || 'Unnamed';
+    sponsorMap.set(name, (sponsorMap.get(name) || 0) + 1);
+  }
+
+  const sponsors: SponsorStat[] = Array.from(sponsorMap.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.name.localeCompare(b.name);
+    });
+
   return {
     totalVideos90d,
     weeklyUploadFrequency,
@@ -248,6 +279,10 @@ export function calculateKPIs(videos: VideoItem[]): KPIData {
     lowestViews,
     long: calculateFormatKPIs(videos.filter((v) => !v.isShort)),
     shorts: calculateFormatKPIs(videos.filter((v) => v.isShort)),
+    sponsoredCount,
+    sponsoredPercentage,
+    unknownCount,
+    sponsors,
   };
 }
 
@@ -479,10 +514,16 @@ export async function fetchPast90DaysVideos(
     chunks.push(videoIds.slice(i, i + 50));
   }
 
-  const rawVideos: VideoItem[] = [];
+  interface RawVideoEntry {
+    video: VideoItem;
+    hasPaidPlacement: boolean;
+    descResult: TextMatchResult;
+  }
+
+  const rawEntries: RawVideoEntry[] = [];
 
   for (const chunk of chunks) {
-    const videosUrl = `${baseUrl}/videos?part=snippet,contentDetails,statistics,status,liveStreamingDetails&id=${encodeURIComponent(
+    const videosUrl = `${baseUrl}/videos?part=snippet,contentDetails,statistics,status,liveStreamingDetails,paidProductPlacementDetails&id=${encodeURIComponent(
       chunk.join(',')
     )}&key=${apiKey}`;
     const res = await fetch(videosUrl);
@@ -540,10 +581,17 @@ export async function fetchPast90DaysVideos(
           (item.snippet?.liveBroadcastContent && item.snippet.liveBroadcastContent !== 'none')
       );
 
-      rawVideos.push({
+      // 1. YouTube Data API paid product placement flag
+      const hasPaidPlacement = Boolean(item.paidProductPlacementDetails?.hasPaidProductPlacement);
+
+      // 2. Description keyword matching & brand extraction
+      const description = item.snippet?.description || '';
+      const descResult = detectSponsorInText(description);
+
+      const videoItem: VideoItem = {
         id: item.id,
         title: item.snippet?.title || 'Untitled',
-        description: item.snippet?.description || '',
+        description,
         publishedAt,
         thumbnail:
           item.snippet?.thumbnails?.maxres?.url ||
@@ -567,9 +615,49 @@ export async function fetchPast90DaysVideos(
         url: `https://www.youtube.com/watch?v=${item.id}`,
         isOutlier: false,
         outlierMultiplier: 1,
+        sponsored: 'no',
+        sponsorName: null,
+        sponsorSource: null,
+      };
+
+      rawEntries.push({
+        video: videoItem,
+        hasPaidPlacement,
+        descResult,
       });
     }
   }
+
+  // 3. Transcript keyword match: only when step 2 found no sponsor name
+  // Fetch transcripts server-side only with small concurrency limit (3 at a time)
+  const entriesNeedingTranscript = rawEntries.filter((e) => !e.descResult.sponsorName);
+
+  const transcriptResults = await mapConcurrent(entriesNeedingTranscript, 3, async (entry) => {
+    const transcriptText = await fetchVideoTranscript(entry.video.id);
+    return { id: entry.video.id, transcriptText };
+  });
+
+  const transcriptMap = new Map(transcriptResults.map((r) => [r.id, r.transcriptText]));
+
+  for (const entry of rawEntries) {
+    const transcriptText = transcriptMap.has(entry.video.id)
+      ? transcriptMap.get(entry.video.id)!
+      : null;
+    const transcriptFetched = transcriptMap.has(entry.video.id) && transcriptText !== null;
+
+    const evalResult = evaluateSponsorship({
+      hasPaidPlacement: entry.hasPaidPlacement,
+      descResult: entry.descResult,
+      transcriptText,
+      transcriptFetched,
+    });
+
+    entry.video.sponsored = evalResult.sponsored;
+    entry.video.sponsorName = evalResult.sponsorName;
+    entry.video.sponsorSource = evalResult.sponsorSource;
+  }
+
+  const rawVideos: VideoItem[] = rawEntries.map((e) => e.video);
 
   // Calculate avg views and enrich outlier flags
   const totalViews = rawVideos.reduce((acc, v) => acc + (typeof v.views === 'number' ? v.views : 0), 0);
