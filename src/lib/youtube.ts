@@ -245,18 +245,67 @@ export function calculateKPIs(videos: VideoItem[]): KPIData {
     totalVideos90d > 0 ? Math.round((sponsoredCount / totalVideos90d) * 100) : 0;
   const unknownCount = videos.filter((v) => v.sponsored === 'unknown').length;
 
-  const sponsorMap = new Map<string, number>();
-  for (const v of sponsoredVideos) {
-    const name = v.sponsorName?.trim() || 'Unnamed';
-    sponsorMap.set(name, (sponsorMap.get(name) || 0) + 1);
+  // Group sponsor names by a key = name lowercased with all spaces, hyphens and dots removed.
+  // For each group, use the most frequent original spelling as the display name,
+  // and also write that display name back to each video's sponsorName so the table and the list match.
+  interface SponsorGroup {
+    variants: Map<string, number>;
+    videos: VideoItem[];
   }
 
-  const sponsors: SponsorStat[] = Array.from(sponsorMap.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      return a.name.localeCompare(b.name);
+  const groups = new Map<string, SponsorGroup>();
+
+  for (const v of sponsoredVideos) {
+    const rawName = v.sponsorName?.trim();
+    if (!rawName) {
+      v.sponsorName = null;
+      continue;
+    }
+
+    const key = rawName.toLowerCase().replace(/[\s\-\.]/g, '');
+    if (!key) {
+      v.sponsorName = null;
+      continue;
+    }
+
+    let group = groups.get(key);
+    if (!group) {
+      group = { variants: new Map(), videos: [] };
+      groups.set(key, group);
+    }
+    group.variants.set(rawName, (group.variants.get(rawName) || 0) + 1);
+    group.videos.push(v);
+  }
+
+  const sponsors: SponsorStat[] = [];
+
+  for (const group of groups.values()) {
+    let bestVariant = '';
+    let maxCount = -1;
+    let totalGroupCount = 0;
+
+    for (const [variant, count] of group.variants.entries()) {
+      totalGroupCount += count;
+      if (count > maxCount || (count === maxCount && variant.localeCompare(bestVariant) < 0)) {
+        maxCount = count;
+        bestVariant = variant;
+      }
+    }
+
+    for (const v of group.videos) {
+      v.sponsorName = bestVariant;
+    }
+
+    sponsors.push({
+      name: bestVariant,
+      count: totalGroupCount,
     });
+  }
+
+  sponsors.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.name.localeCompare(b.name);
+  });
 
   return {
     totalVideos90d,

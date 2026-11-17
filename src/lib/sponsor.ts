@@ -75,6 +75,45 @@ export const STOP_WORDS = new Set([
   'while',
   'because',
   'where',
+  'oh',
+  'um',
+  'uh',
+  'ah',
+  'yes',
+  'yeah',
+  'okay',
+  'ok',
+  'all',
+  'right',
+  'alright',
+  'get',
+  'perfect',
+  'bet',
+  'behold',
+  'my',
+  'name',
+  'hey',
+  'well',
+  'now',
+  'like',
+  'love',
+  'unlike',
+  'ever',
+  'since',
+  'just',
+  'know',
+  'what',
+  'thinking',
+  'best',
+  'way',
+  'learn',
+  'how',
+  'why',
+  'here',
+  'there',
+  'let',
+  'lets',
+  'let\'s',
   // Devanagari filler words
   'की',
   'का',
@@ -140,15 +179,37 @@ export function toTitleCase(str: string): string {
 export function cleanAfterTokens(rawTokens: string | undefined | null): string | null {
   if (!rawTokens) return null;
   const words = rawTokens.trim().split(/\s+/).filter(Boolean);
-  const picked: string[] = [];
 
-  for (const w of words) {
+  let idx = 0;
+  let skipped = 0;
+
+  // First SKIP leading tokens that are STOP_WORDS (skip at most 4)
+  while (idx < words.length && skipped < 4) {
+    const w = words[idx];
+    const clean = w.replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '').toLowerCase();
+    if (!clean) {
+      idx++;
+      continue;
+    }
+    if (STOP_WORDS.has(w.toLowerCase()) || STOP_WORDS.has(clean)) {
+      skipped++;
+      idx++;
+    } else {
+      break;
+    }
+  }
+
+  // Then collect tokens until the next STOP_WORD, keeping at most 3 tokens
+  const picked: string[] = [];
+  while (idx < words.length && picked.length < 3) {
+    const w = words[idx];
     const cleanWord = w.replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '');
-    if (!cleanWord || STOP_WORDS.has(cleanWord.toLowerCase())) {
+    const cleanLower = cleanWord.toLowerCase();
+    if (!cleanWord || STOP_WORDS.has(w.toLowerCase()) || STOP_WORDS.has(cleanLower)) {
       break;
     }
     picked.push(cleanWord);
-    if (picked.length === 3) break;
+    idx++;
   }
 
   if (picked.length === 0) return null;
