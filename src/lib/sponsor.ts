@@ -3,7 +3,7 @@ import { YoutubeTranscript } from 'youtube-transcript';
 export interface TranscriptSponsorResult {
   sponsored: 'yes' | 'no' | 'unknown';
   sponsorName: string | null;
-  sponsorSource: 'transcript' | null;
+  sponsorSource: 'transcript' | 'llm' | null;
   matchedSnippet: string | null;
 }
 

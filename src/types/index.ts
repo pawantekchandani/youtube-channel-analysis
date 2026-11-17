@@ -23,7 +23,7 @@ export interface VideoItem {
   // Sponsored content detection
   sponsored: 'yes' | 'no' | 'unknown';
   sponsorName: string | null;
-  sponsorSource: 'transcript' | null;
+  sponsorSource: 'transcript' | 'llm' | null;
   sponsorSnippet?: string | null;
 }
 
