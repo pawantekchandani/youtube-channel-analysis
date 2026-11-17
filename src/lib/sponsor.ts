@@ -57,6 +57,37 @@ export const STOP_WORDS = new Set([
   'thank',
   'again',
   'also',
+  // Devanagari filler words
+  'की',
+  'का',
+  'के',
+  'को',
+  'में',
+  'से',
+  'है',
+  'हैं',
+  'था',
+  'भी',
+  'जो',
+  'वो',
+  'ये',
+  'यह',
+  'वह',
+  'इस',
+  'उस',
+  'और',
+  'तो',
+  'ही',
+  'एक',
+  'बिटवीन',
+  'वीडियो',
+  'आज',
+  'हम',
+  'आप',
+  'मैं',
+  'ने',
+  'पर',
+  'लिए',
 ]);
 
 /**
@@ -162,22 +193,22 @@ export function matchSponsorInTranscript(rawText: string | undefined | null): Ph
     },
     // a. "(segue|segway) to our sponsor X"
     {
-      regex: /(?:segue|segway)\s+to\s+our\s+sponsor(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      regex: /(?:segue|segway)\s+to\s+our\s+sponsor(?!s)(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
       extract: (m) => cleanAfterTokens(m[1]),
     },
     // b. "from our sponsor X"
     {
-      regex: /from\s+our\s+sponsor(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      regex: /from\s+our\s+sponsor(?!s)(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
       extract: (m) => cleanAfterTokens(m[1]),
     },
     // d. "about our sponsor, which is of course X"
     {
-      regex: /about\s+our\s+sponsor(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      regex: /about\s+our\s+sponsor(?!s)(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
       extract: (m) => cleanAfterTokens(m[1]),
     },
     // c. "our sponsor X"
     {
-      regex: /\bour\s+sponsor(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      regex: /\bour\s+sponsor(?!s)(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
       extract: (m) => cleanAfterTokens(m[1]),
     },
     // e. "X for sponsoring (today's|this) video"
@@ -225,7 +256,14 @@ export function matchSponsorInTranscript(rawText: string | undefined | null): Ph
   for (const item of extractionPatterns) {
     const match = norm.match(item.regex);
     if (match) {
-      const sponsorName = item.extract(match);
+      let sponsorName = item.extract(match);
+      if (sponsorName) {
+        const trimmed = sponsorName.trim();
+        const firstToken = trimmed.split(/\s+/)[0];
+        if (!trimmed || trimmed.length <= 1 || (firstToken && STOP_WORDS.has(firstToken.toLowerCase()))) {
+          sponsorName = null;
+        }
+      }
       const matchIdx = match.index || 0;
       const start = Math.max(0, matchIdx - 30);
       const end = Math.min(norm.length, matchIdx + match[0].length + 40);
