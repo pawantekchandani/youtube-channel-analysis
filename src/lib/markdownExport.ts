@@ -64,14 +64,16 @@ export function generateMarkdownReport(data: ChannelAnalysisResponse): string {
 
   // 3. Sponsored Content Analysis
   lines.push(`## 3. Sponsored Content Analysis (90d)`);
+  lines.push(`> Detection is from video transcripts only. Videos without transcripts are Unknown.`);
+  lines.push('');
   lines.push(`| Metric | Value | Insights / Benchmark |`);
   lines.push(`| :--- | :--- | :--- |`);
-  lines.push(`| **Sponsored Uploads** | ${kpis.sponsoredCount} videos (${kpis.sponsoredPercentage}%) | Videos identified with commercial sponsorship |`);
-  lines.push(`| **Inconclusive / Unknown** | ${kpis.unknownCount} videos | Transcripts unavailable and no metadata markers |`);
+  lines.push(`| **Sponsored Uploads** | ${kpis.sponsoredCount} videos (${kpis.sponsoredPercentage}%) | Videos identified with commercial sponsorship from transcript |`);
+  lines.push(`| **Inconclusive / Unknown** | ${kpis.unknownCount} videos | Transcripts unavailable to verify |`);
   lines.push('');
 
   if (kpis.sponsors && kpis.sponsors.length > 0) {
-    lines.push(`### Detected Sponsors`);
+    lines.push(`### Detected Sponsors (from Transcript)`);
     lines.push(`| Sponsor | Videos |`);
     lines.push(`| :--- | :--- |`);
     kpis.sponsors.forEach((s) => {

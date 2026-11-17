@@ -133,7 +133,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis, allTimeVideos }) => {
           iconClass="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
           value={kpis.sponsoredCount}
           unit="videos"
-          footer={`${kpis.sponsoredPercentage}% of 90d videos (${kpis.unknownCount} unknown)`}
+          footer={`${kpis.sponsoredPercentage}% of 90d videos (${kpis.unknownCount} without transcript)`}
         />
 
         <div className={cardClass}>
@@ -180,9 +180,9 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis, allTimeVideos }) => {
         <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 p-4 shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Handshake className="w-3.5 h-3.5 text-emerald-400" /> Detected Sponsors ({kpis.sponsors.length})
+              <Handshake className="w-3.5 h-3.5 text-emerald-400" /> Detected Sponsors from Transcripts ({kpis.sponsors.length})
             </span>
-            <span className="text-[11px] text-zinc-500">Sorted by frequency</span>
+            <span className="text-[11px] text-zinc-500">From transcript matches</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {kpis.sponsors.map((sponsor) => (
