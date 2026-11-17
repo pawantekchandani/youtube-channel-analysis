@@ -1,6 +1,6 @@
 import { ChannelAnalysisResponse } from '@/types';
 import { formatCompactNumber, formatCalendarDate } from './formatters';
-import { formatDuration } from './youtube';
+import { formatDuration } from './format';
 
 /**
  * Generates a structured Markdown report from the analyzed channel data.

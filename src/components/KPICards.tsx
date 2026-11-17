@@ -3,7 +3,7 @@
 import React from 'react';
 import { FormatKPIs, KPIData } from '@/types';
 import { formatCompactNumber } from '@/lib/formatters';
-import { formatDuration } from '@/lib/youtube';
+import { formatDuration } from '@/lib/format';
 import { Film, CalendarDays, Clock, Eye, PieChart, Smartphone, Timer, Library, Handshake } from 'lucide-react';
 
 interface KPICardsProps {

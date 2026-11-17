@@ -1,4 +1,8 @@
 import { ChannelInfo, FormatKPIs, KPIData, VideoItem, SponsorStat } from '@/types';
+import { llmSponsorCheck, isVerbatim } from './sponsorLlm';
+import { formatDuration } from './format';
+
+export { formatDuration };
 import {
   evaluateTranscriptSponsorship,
   fetchVideoTranscript,
@@ -23,25 +27,6 @@ export function parseISO8601Duration(duration: string): number {
   return days * 86400 + hours * 3600 + minutes * 60 + seconds;
 }
 
-/**
- * Formats seconds into MM:SS or HH:MM:SS
- */
-export function formatDuration(seconds: number): string {
-  if (isNaN(seconds) || seconds < 0) return '0:00';
-
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-
-  const paddedSecs = secs.toString().padStart(2, '0');
-
-  if (hrs > 0) {
-    const paddedMins = mins.toString().padStart(2, '0');
-    return `${hrs}:${paddedMins}:${paddedSecs}`;
-  }
-
-  return `${mins}:${paddedSecs}`;
-}
 
 /**
  * Extracts a channel handle, ID, or search username from various user inputs
@@ -700,6 +685,45 @@ export async function fetchPast90DaysVideos(
     video.sponsorName = evalResult.sponsorName;
     video.sponsorSource = evalResult.sponsorSource;
     video.sponsorSnippet = evalResult.matchedSnippet;
+  }
+
+  // Second-layer sponsor check with an LLM (OpenRouter)
+  const videosWithTranscript: { id: string; title: string; transcript: string }[] = [];
+  for (const video of rawVideos) {
+    const transcript = transcriptMap.get(video.id);
+    if (transcript !== null && transcript !== undefined) {
+      videosWithTranscript.push({
+        id: video.id,
+        title: video.title,
+        transcript,
+      });
+    }
+  }
+
+  const llmResults = await llmSponsorCheck(videosWithTranscript);
+
+  for (const video of rawVideos) {
+    const transcript = transcriptMap.get(video.id);
+    const llmRes = llmResults.get(video.id);
+    if (
+      llmRes &&
+      llmRes.sponsored &&
+      isVerbatim(llmRes.evidence, transcript)
+    ) {
+      const llmName = llmRes.sponsorName?.trim() || null;
+      if (video.sponsored === 'yes') {
+        if (llmName) {
+          video.sponsorName = llmName;
+        }
+        // Keep sponsorSource 'transcript' and the phrase snippet
+      } else if (video.sponsored === 'no') {
+        video.sponsored = 'yes';
+        video.sponsorName = llmName;
+        video.sponsorSource = 'llm';
+        video.sponsorSnippet = llmRes.evidence;
+      }
+    }
+    // LLM says not sponsored, or evidence fails the check, or no LLM result: keep the phrase result unchanged.
   }
 
   // Calculate avg views and enrich outlier flags
