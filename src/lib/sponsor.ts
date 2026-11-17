@@ -57,6 +57,24 @@ export const STOP_WORDS = new Set([
   'thank',
   'again',
   'also',
+  'though',
+  'until',
+  'at',
+  'down',
+  'below',
+  'above',
+  'their',
+  'its',
+  'his',
+  'her',
+  'whether',
+  'so',
+  'but',
+  'if',
+  'when',
+  'while',
+  'because',
+  'where',
   // Devanagari filler words
   'की',
   'का',
@@ -134,7 +152,9 @@ export function cleanAfterTokens(rawTokens: string | undefined | null): string |
   }
 
   if (picked.length === 0) return null;
-  return toTitleCase(picked.join(' '));
+  const result = toTitleCase(picked.join(' '));
+  if (result.length <= 1) return null;
+  return result;
 }
 
 /**
@@ -193,22 +213,22 @@ export function matchSponsorInTranscript(rawText: string | undefined | null): Ph
     },
     // a. "(segue|segway) to our sponsor X"
     {
-      regex: /(?:segue|segway)\s+to\s+our\s+sponsor(?!s)(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      regex: /(?:segue|segway)\s+to\s+our\s+sponsor(?!s)(?:[,:.\->\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:.\->\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
       extract: (m) => cleanAfterTokens(m[1]),
     },
     // b. "from our sponsor X"
     {
-      regex: /from\s+our\s+sponsor(?!s)(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      regex: /from\s+our\s+sponsor(?!s)(?:[,:.\->\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:.\->\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
       extract: (m) => cleanAfterTokens(m[1]),
     },
     // d. "about our sponsor, which is of course X"
     {
-      regex: /about\s+our\s+sponsor(?!s)(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      regex: /about\s+our\s+sponsor(?!s)(?:[,:.\->\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:.\->\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
       extract: (m) => cleanAfterTokens(m[1]),
     },
     // c. "our sponsor X"
     {
-      regex: /\bour\s+sponsor(?!s)(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      regex: /\bour\s+sponsor(?!s)(?:[,:.\->\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:.\->\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
       extract: (m) => cleanAfterTokens(m[1]),
     },
     // e. "X for sponsoring (today's|this) video"
@@ -243,12 +263,12 @@ export function matchSponsorInTranscript(rawText: string | undefined | null): Ph
     },
     // f. Devanagari (स्पॉन्सर, प्रायोजक, पार्टनरशिप without \b)
     {
-      regex: /(?:प्रायोजक|स्पॉन्सर|पार्टनरशिप)(?:\s+है|\s*:)?\s+([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,3})/u,
+      regex: /(?:प्रायोजक|स्पॉन्सर)(?:\s+है|\s*:)?\s+([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,3})/u,
       extract: (m) => cleanAfterTokens(m[1]),
     },
     // g. Fallback detection for strong phrases when brand name isn't cleanly parsed
     {
-      regex: /(?:प्रायोजक|स्पॉन्सर|पार्टनरशिप|\b(?:sponsored by|this video is sponsored|todays? sponsor|brought to you by|for sponsoring\s+(?:today(?:'s|'|s)?|this)\s+video|sponsored this video|in partnership with|paid partnership with|ne sponsor kiya|aaj ka sponsor|is video ka sponsor|(?:segue|segway)\s+to\s+our\s+sponsor|from\s+our\s+sponsor|about\s+our\s+sponsor|our\s+sponsor)\b)/iu,
+      regex: /(?:प्रायोजक|स्पॉन्सर|\b(?:sponsored by|this video is sponsored|todays? sponsor|brought to you by|for sponsoring\s+(?:today(?:'s|'|s)?|this)\s+video|sponsored this video|in partnership with|paid partnership with|ne sponsor kiya|aaj ka sponsor|is video ka sponsor|(?:segue|segway)\s+to\s+our\s+sponsor|from\s+our\s+sponsor|about\s+our\s+sponsor|our\s+sponsor)\b)/iu,
       extract: () => null,
     },
   ];
