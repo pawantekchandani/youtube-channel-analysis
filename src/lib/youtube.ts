@@ -609,8 +609,33 @@ export async function fetchPast90DaysVideos(
 
   // Fetch transcript for EVERY video in the 90-day window (concurrency 3)
   const transcriptResults = await mapConcurrent(rawVideos, 3, async (video) => {
-    const transcriptText = await fetchVideoTranscript(video.id);
-    return { id: video.id, transcriptText };
+    let transcriptText: string | null = null;
+
+    // Try languages in order and stop at the first one that returns text:
+    // 1. snippet.defaultAudioLanguage base code (e.g. "hi" from "hi-IN"), if present
+    // 2. "en"
+    // 3. No lang option (library default)
+    const baseCode = video.defaultAudioLanguage
+      ? video.defaultAudioLanguage.split(/[-_]/)[0].toLowerCase().trim()
+      : null;
+
+    const attempts: Array<{ lang?: string } | undefined> = [];
+    if (baseCode) {
+      attempts.push({ lang: baseCode });
+    }
+    if (baseCode !== 'en') {
+      attempts.push({ lang: 'en' });
+    }
+    attempts.push(undefined);
+
+    for (const opt of attempts) {
+      transcriptText = await fetchVideoTranscript(video.id, opt);
+      if (transcriptText) {
+        break;
+      }
+    }
+
+    return { id: video.id, transcriptText: transcriptText || null };
   });
 
   const transcriptMap = new Map(transcriptResults.map((r) => [r.id, r.transcriptText]));

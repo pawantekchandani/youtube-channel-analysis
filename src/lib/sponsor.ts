@@ -160,8 +160,29 @@ export function matchSponsorInTranscript(rawText: string | undefined | null): Ph
       regex: /thanks to\s+([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,4}?)\s+for sponsoring/i,
       extract: (m) => cleanAfterTokens(m[1]),
     },
+    // a. "(segue|segway) to our sponsor X"
     {
-      regex: /((?:[a-zA-Z0-9\u0900-\u097F]+\s+){1,4})for sponsoring this video/i,
+      regex: /(?:segue|segway)\s+to\s+our\s+sponsor(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      extract: (m) => cleanAfterTokens(m[1]),
+    },
+    // b. "from our sponsor X"
+    {
+      regex: /from\s+our\s+sponsor(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      extract: (m) => cleanAfterTokens(m[1]),
+    },
+    // d. "about our sponsor, which is of course X"
+    {
+      regex: /about\s+our\s+sponsor(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      extract: (m) => cleanAfterTokens(m[1]),
+    },
+    // c. "our sponsor X"
+    {
+      regex: /\bour\s+sponsor(?:[,:\-\s]+(?:which is|of course|for today(?:'s|'|s)?\s+video|today|is))*[,:\-\s]*([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
+      extract: (m) => cleanAfterTokens(m[1]),
+    },
+    // e. "X for sponsoring (today's|this) video"
+    {
+      regex: /((?:[a-zA-Z0-9\u0900-\u097F]+\s+){1,4})for sponsoring\s+(?:today(?:'s|'|s)?|this)\s+video/i,
       extract: (m) => cleanBeforeTokens(m[1]),
     },
     {
@@ -189,14 +210,14 @@ export function matchSponsorInTranscript(rawText: string | undefined | null): Ph
       regex: /is video ka sponsor(?:\s+hai)?\s+([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,5})/i,
       extract: (m) => cleanAfterTokens(m[1]),
     },
-    // Devanagari
+    // f. Devanagari (स्पॉन्सर, प्रायोजक, पार्टनरशिप without \b)
     {
-      regex: /(?:प्रायोजक|स्पॉन्सर)(?:\s+है|\s*:)?\s+([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,3})/u,
+      regex: /(?:प्रायोजक|स्पॉन्सर|पार्टनरशिप)(?:\s+है|\s*:)?\s+([a-zA-Z0-9\u0900-\u097F]+(?:\s+[a-zA-Z0-9\u0900-\u097F]+){0,3})/u,
       extract: (m) => cleanAfterTokens(m[1]),
     },
-    // Fallback detection for strong phrases when brand name isn't cleanly parsed
+    // g. Fallback detection for strong phrases when brand name isn't cleanly parsed
     {
-      regex: /\b(?:sponsored by|this video is sponsored|todays? sponsor|brought to you by|for sponsoring this video|sponsored this video|in partnership with|paid partnership with|ne sponsor kiya|aaj ka sponsor|is video ka sponsor|प्रायोजक|स्पॉन्सर)\b/i,
+      regex: /(?:प्रायोजक|स्पॉन्सर|पार्टनरशिप|\b(?:sponsored by|this video is sponsored|todays? sponsor|brought to you by|for sponsoring\s+(?:today(?:'s|'|s)?|this)\s+video|sponsored this video|in partnership with|paid partnership with|ne sponsor kiya|aaj ka sponsor|is video ka sponsor|(?:segue|segway)\s+to\s+our\s+sponsor|from\s+our\s+sponsor|about\s+our\s+sponsor|our\s+sponsor)\b)/iu,
       extract: () => null,
     },
   ];
@@ -261,11 +282,24 @@ export function evaluateTranscriptSponsorship(transcriptText: string | null): Tr
  * Takes the default caption track in whatever language it is (does not force English).
  * Returns transcript text string if available, or null on error / unavailable / timeout.
  */
-export async function fetchVideoTranscript(videoId: string, timeoutMs = 5000): Promise<string | null> {
+export async function fetchVideoTranscript(
+  videoId: string,
+  options?: { lang?: string } | number,
+  timeoutMs = 5000
+): Promise<string | null> {
+  let config: { lang?: string } | undefined = undefined;
+  let timeout = timeoutMs;
+
+  if (typeof options === 'number') {
+    timeout = options;
+  } else if (options && typeof options === 'object') {
+    config = options;
+  }
+
   try {
-    const fetchPromise = YoutubeTranscript.fetchTranscript(videoId);
+    const fetchPromise = YoutubeTranscript.fetchTranscript(videoId, config);
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Transcript fetch timeout')), timeoutMs)
+      setTimeout(() => reject(new Error('Transcript fetch timeout')), timeout)
     );
 
     const transcriptItems = await Promise.race([fetchPromise, timeoutPromise]);
